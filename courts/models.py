@@ -1,5 +1,5 @@
 from django.db import models
-
+from django.core.validators import MinValueValidator, MaxValueValidator
 
 class Venue(models.Model):
     nombre = models.CharField(
@@ -15,6 +15,17 @@ class Venue(models.Model):
         default="Barranquilla"
     )
 
+    porcentaje_abono = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        default=30,
+        validators=[
+            MinValueValidator(0),
+            MaxValueValidator(100)
+        ],
+        verbose_name="Porcentaje de abono"
+    )
+
     activo = models.BooleanField(
         default=True
     )
@@ -26,6 +37,8 @@ class Venue(models.Model):
     fecha_actualizacion = models.DateTimeField(
         auto_now=True
     )
+
+     
 
     class Meta:
         verbose_name = "Establecimiento"
@@ -83,13 +96,13 @@ class Cancha(models.Model):
 
 class Horario(models.Model):
     DIAS_SEMANA = [
-        (0, "Lunes"),
-        (1, "Martes"),
-        (2, "Miércoles"),
-        (3, "Jueves"),
-        (4, "Viernes"),
-        (5, "Sábado"),
-        (6, "Domingo"),
+        (1, "Lunes"),
+        (2, "Martes"),
+        (3, "Miércoles"),
+        (4, "Jueves"),
+        (5, "Viernes"),
+        (6, "Sábado"),
+        (7, "Domingo"),
     ]
 
     cancha = models.ForeignKey(
@@ -104,6 +117,11 @@ class Horario(models.Model):
 
     hora_inicio = models.TimeField()
     hora_fin = models.TimeField()
+
+    duracion_slot_minutos = models.PositiveSmallIntegerField(
+        default=60,
+        verbose_name="Duración del slot en minutos"
+    )
 
     activo = models.BooleanField(
         default=True

@@ -6,9 +6,17 @@ from courts.models import Cancha
 
 class Reserva(models.Model):
     ESTADOS = [
-        ("confirmada", "Confirmada"),
-        ("cancelada", "Cancelada"),
-        ("realizada", "Realizada"),
+        ("PENDING_PAYMENT", "Pendiente de pago"),
+        ("CONFIRMED", "Confirmada"),
+        ("COMPLETED", "Completada"),
+        ("CANCELLED", "Cancelada"),
+        ("EXPIRED", "Expirada"),
+    ]
+
+    ORIGENES_DATOS = [
+        ("SYNTHETIC", "Sintético"),
+        ("HISTORICAL_REAL", "Histórico real"),
+        ("SYSTEM", "Sistema"),
     ]
 
     usuario = models.ForeignKey(
@@ -33,10 +41,38 @@ class Reserva(models.Model):
         decimal_places=2
     )
 
+    abono_requerido = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=0
+    )
+
+    saldo_pendiente = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=0
+    )
+
     estado = models.CharField(
         max_length=20,
         choices=ESTADOS,
-        default="confirmada"
+        default="PENDING_PAYMENT"
+    )
+
+    hold_expira_en = models.DateTimeField(
+        null=True,
+        blank=True
+    )
+
+    fecha_cancelacion = models.DateTimeField(
+        null=True,
+        blank=True
+    )
+
+    origen_datos = models.CharField(
+        max_length=20,
+        choices=ORIGENES_DATOS,
+        default="SYSTEM"
     )
 
     fecha_creacion = models.DateTimeField(
@@ -57,7 +93,7 @@ class Reserva(models.Model):
                 )
 
         # Una reserva cancelada no bloquea el horario.
-        if self.estado == "cancelada":
+        if self.estado in ["CANCELLED", "EXPIRED"]:
             return
 
         # Comprobar si existe otra reserva que se cruce
@@ -74,7 +110,7 @@ class Reserva(models.Model):
                 hora_inicio__lt=self.hora_fin,
                 hora_fin__gt=self.hora_inicio
             ).exclude(
-                estado="cancelada"
+                estado__in=["CANCELLED", "EXPIRED"]
             )
 
             # Si estamos editando una reserva existente,
