@@ -13,6 +13,8 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 from pathlib import Path
 import os
 from dotenv import load_dotenv
+import dj_database_url
+
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -93,6 +95,26 @@ DATABASES = {
 }
 
 
+USE_NEON = os.getenv(
+    "USE_NEON",
+    "False"
+).lower() == "true"
+
+
+if USE_NEON:
+    DATABASE_URL = os.getenv("DATABASE_URL")
+
+    if not DATABASE_URL:
+        raise ValueError(
+            "USE_NEON está activado pero DATABASE_URL no existe."
+        )
+
+    DATABASES["default"] = dj_database_url.parse(
+        DATABASE_URL,
+        conn_max_age=600,
+    )
+
+    
 # Password validation
 # https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators
 
@@ -117,7 +139,7 @@ AUTH_PASSWORD_VALIDATORS = [
 
 LANGUAGE_CODE = 'en-us'
 
-TIME_ZONE = 'UTC'
+TIME_ZONE = 'America/Bogota'
 
 USE_I18N = True
 
@@ -134,4 +156,8 @@ STATIC_URL = 'static/'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-LOGIN_URL = "/login/"
+LOGIN_REDIRECT_URL = "user:home"
+LOGOUT_REDIRECT_URL = "user:login"
+LOGIN_URL = "user:login"
+MEDIA_URL = "/media/"
+MEDIA_ROOT = BASE_DIR / "media"

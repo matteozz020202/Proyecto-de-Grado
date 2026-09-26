@@ -38,6 +38,13 @@ class Venue(models.Model):
         auto_now=True
     )
 
+    imagen = models.ImageField(
+        upload_to="venues/",
+        null=True,
+        blank=True,
+        verbose_name="Imagen del establecimiento"
+    )
+
      
 
     class Meta:
@@ -80,6 +87,13 @@ class Cancha(models.Model):
 
     fecha_actualizacion = models.DateTimeField(
         auto_now=True
+    )
+
+    imagen = models.ImageField(
+        upload_to="courts/",
+        null=True,
+        blank=True,
+        verbose_name="Imagen de la cancha"
     )
 
     class Meta:

@@ -135,3 +135,70 @@ class Reserva(models.Model):
             f"{self.hora_inicio}"
         )
         
+
+
+class Pago(models.Model):
+    ESTADOS = [
+        ("PENDING", "Pendiente"),
+        ("APPROVED", "Aprobado"),
+        ("REJECTED", "Rechazado"),
+    ]
+
+    TIPOS = [
+        ("DEPOSIT", "Abono"),
+        ("BALANCE", "Saldo"),
+    ]
+
+    reserva = models.ForeignKey(
+        Reserva,
+        on_delete=models.PROTECT,
+        related_name="pagos"
+    )
+
+    monto = models.DecimalField(
+        max_digits=10,
+        decimal_places=2
+    )
+
+    tipo = models.CharField(
+        max_length=20,
+        choices=TIPOS,
+        default="DEPOSIT"
+    )
+
+    estado = models.CharField(
+        max_length=20,
+        choices=ESTADOS,
+        default="PENDING"
+    )
+
+    proveedor = models.CharField(
+        max_length=50,
+        default="SIMULATED"
+    )
+
+    referencia = models.CharField(
+        max_length=100,
+        unique=True
+    )
+
+    fecha_creacion = models.DateTimeField(
+        auto_now_add=True
+    )
+
+    fecha_aprobacion = models.DateTimeField(
+        null=True,
+        blank=True
+    )
+
+    def __str__(self):
+        return (
+            f"Pago {self.referencia} - "
+            f"{self.reserva_id} - "
+            f"{self.estado}"
+        )
+
+    class Meta:
+        verbose_name = "Pago"
+        verbose_name_plural = "Pagos"
+        ordering = ["-fecha_creacion"]
