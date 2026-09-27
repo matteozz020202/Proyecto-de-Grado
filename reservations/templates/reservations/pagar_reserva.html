@@ -70,12 +70,12 @@
 
             <div class="card border-0 shadow-sm">
 
-                {% if reserva.cancha.imagen %}
+                {% if reserva.court.image %}
 
                     <img
-                        src="{{ reserva.cancha.imagen.url }}"
+                        src="{{ reserva.court.image.url }}"
                         class="card-img-top"
-                        alt="{{ reserva.cancha.nombre }}"
+                        alt="{{ reserva.court.court_name }}"
                         style="height: 260px; object-fit: cover;"
                     >
 
@@ -89,7 +89,7 @@
                     </h1>
 
                     <p class="text-muted">
-                        Reserva #{{ reserva.id }}
+                        Reserva #{{ reserva.reservation_id }}
                     </p>
 
 
@@ -98,24 +98,24 @@
 
                     <p>
                         <strong>Establecimiento:</strong>
-                        {{ reserva.cancha.venue.nombre }}
+                        {{ reserva.court.venue.venue_name }}
                     </p>
 
                     <p>
                         <strong>Cancha:</strong>
-                        {{ reserva.cancha.nombre }}
+                        {{ reserva.court.court_name }}
                     </p>
 
                     <p>
                         <strong>Fecha:</strong>
-                        {{ reserva.fecha|date:"d/m/Y" }}
+                        {{ reserva.reservation_date|date:"d/m/Y" }}
                     </p>
 
                     <p>
                         <strong>Horario:</strong>
-                        {{ reserva.hora_inicio|time:"H:i" }}
+                        {{ reserva.start_time|time:"H:i" }}
                         -
-                        {{ reserva.hora_fin|time:"H:i" }}
+                        {{ reserva.end_time|time:"H:i" }}
                     </p>
 
 
@@ -133,7 +133,7 @@
                                 </small>
 
                                 <h5>
-                                    ${{ reserva.precio|floatformat:0 }}
+                                    ${{ reserva.total_amount|floatformat:0 }}
                                 </h5>
 
                             </div>
@@ -150,7 +150,7 @@
                                 </small>
 
                                 <h5>
-                                    ${{ reserva.abono_requerido|floatformat:0 }}
+                                    ${{ reserva.deposit_required|floatformat:0 }}
                                 </h5>
 
                             </div>
@@ -167,7 +167,7 @@
                                 </small>
 
                                 <h5>
-                                    ${{ reserva.saldo_pendiente|floatformat:0 }}
+                                    ${{ reserva.remaining_amount|floatformat:0 }}
                                 </h5>
 
                             </div>

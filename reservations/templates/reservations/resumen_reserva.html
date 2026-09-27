@@ -37,7 +37,7 @@
         </a>
 
         <a
-            href="{% url 'courts:disponibilidad_cancha' cancha.id %}?fecha={{ fecha|date:'Y-m-d' }}"
+            href="{% url 'courts:disponibilidad_cancha' cancha.court_id %}?fecha={{ fecha|date:'Y-m-d' }}"
             class="btn btn-outline-light"
         >
             Volver
@@ -56,12 +56,12 @@
 
             <div class="card border-0 shadow-sm">
 
-                {% if cancha.imagen %}
+                {% if cancha.image %}
 
                     <img
-                        src="{{ cancha.imagen.url }}"
+                        src="{{ cancha.image.url }}"
                         class="card-img-top"
-                        alt="{{ cancha.nombre }}"
+                        alt="{{ cancha.court_name }}"
                         style="height: 280px; object-fit: cover;"
                     >
 
@@ -85,7 +85,7 @@
                             <strong>Establecimiento</strong>
 
                             <p>
-                                {{ cancha.venue.nombre }}
+                                {{ cancha.venue.venue_name }}
                             </p>
                         </div>
 
@@ -94,7 +94,7 @@
                             <strong>Cancha</strong>
 
                             <p>
-                                {{ cancha.nombre }}
+                                {{ cancha.court_name }}
                             </p>
                         </div>
 
@@ -135,7 +135,7 @@
                                 </small>
 
                                 <h4 class="mb-0">
-                                    ${{ valores.valor_total|floatformat:0 }}
+                                    ${{ valores.total_amount|floatformat:0 }}
                                 </h4>
 
                             </div>
@@ -149,11 +149,11 @@
 
                                 <small class="text-muted">
                                     Abono requerido
-                                    ({{ valores.porcentaje_abono }}%)
+                                    ({{ valores.deposit_percentage }}%)
                                 </small>
 
                                 <h4 class="mb-0">
-                                    ${{ valores.abono_requerido|floatformat:0 }}
+                                    ${{ valores.deposit_required|floatformat:0 }}
                                 </h4>
 
                             </div>
@@ -170,7 +170,7 @@
                                 </small>
 
                                 <h4 class="mb-0">
-                                    ${{ valores.saldo_pendiente|floatformat:0 }}
+                                    ${{ valores.remaining_amount|floatformat:0 }}
                                 </h4>
 
                             </div>
@@ -224,7 +224,7 @@
 
 
                             <a
-                                href="{% url 'courts:disponibilidad_cancha' cancha.id %}?fecha={{ fecha|date:'Y-m-d' }}"
+                                href="{% url 'courts:disponibilidad_cancha' cancha.court_id %}?fecha={{ fecha|date:'Y-m-d' }}"
                                 class="btn btn-outline-secondary"
                             >
                                 Elegir otro horario

@@ -1,11 +1,12 @@
 from django.db import models
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
-from courts.models import Cancha
+
+from courts.models import Court
 
 
-class Reserva(models.Model):
-    ESTADOS = [
+class Reservation(models.Model):
+    RESERVATION_STATUSES = [
         ("PENDING_PAYMENT", "Pendiente de pago"),
         ("CONFIRMED", "Confirmada"),
         ("COMPLETED", "Completada"),
@@ -13,192 +14,244 @@ class Reserva(models.Model):
         ("EXPIRED", "Expirada"),
     ]
 
-    ORIGENES_DATOS = [
+    DATA_SOURCES = [
         ("SYNTHETIC", "Sintético"),
         ("HISTORICAL_REAL", "Histórico real"),
         ("SYSTEM", "Sistema"),
     ]
 
-    usuario = models.ForeignKey(
+    # 1. reservation_id
+    reservation_id = models.BigAutoField(
+        primary_key=True
+    )
+
+    # 2. court_id
+    court = models.ForeignKey(
+        Court,
+        on_delete=models.PROTECT,
+        related_name="reservations",
+        db_column="court_id"
+    )
+
+    # 3. user_id
+    user = models.ForeignKey(
         User,
         on_delete=models.PROTECT,
-        related_name="reservas"
+        related_name="reservations",
+        db_column="user_id"
     )
 
-    cancha = models.ForeignKey(
-        Cancha,
-        on_delete=models.PROTECT,
-        related_name="reservas"
-    )
+    # 4. reservation_date
+    reservation_date = models.DateField()
 
-    fecha = models.DateField()
+    # 5. start_time
+    start_time = models.TimeField()
 
-    hora_inicio = models.TimeField()
-    hora_fin = models.TimeField()
+    # 6. end_time
+    end_time = models.TimeField()
 
-    precio = models.DecimalField(
+    # 7. total_amount
+    total_amount = models.DecimalField(
         max_digits=10,
         decimal_places=2
     )
 
-    abono_requerido = models.DecimalField(
+    # 8. deposit_required
+    deposit_required = models.DecimalField(
         max_digits=10,
         decimal_places=2,
         default=0
     )
 
-    saldo_pendiente = models.DecimalField(
+    # 9. remaining_amount
+    remaining_amount = models.DecimalField(
         max_digits=10,
         decimal_places=2,
         default=0
     )
 
-    estado = models.CharField(
+    # 10. reservation_status
+    reservation_status = models.CharField(
         max_length=20,
-        choices=ESTADOS,
+        choices=RESERVATION_STATUSES,
         default="PENDING_PAYMENT"
     )
 
-    hold_expira_en = models.DateTimeField(
-        null=True,
-        blank=True
-    )
-
-    fecha_cancelacion = models.DateTimeField(
-        null=True,
-        blank=True
-    )
-
-    origen_datos = models.CharField(
-        max_length=20,
-        choices=ORIGENES_DATOS,
-        default="SYSTEM"
-    )
-
-    fecha_creacion = models.DateTimeField(
+    # 11. created_at
+    created_at = models.DateTimeField(
         auto_now_add=True
     )
 
+    # 12. hold_expires_at
+    hold_expires_at = models.DateTimeField(
+        null=True,
+        blank=True
+    )
+
+    # 13. cancelled_at
+    cancelled_at = models.DateTimeField(
+        null=True,
+        blank=True
+    )
+
+    # 14. data_source
+    data_source = models.CharField(
+        max_length=20,
+        choices=DATA_SOURCES,
+        default="SYSTEM"
+    )
+
     class Meta:
+        db_table = "reservations"
         verbose_name = "Reserva"
         verbose_name_plural = "Reservas"
-        ordering = ["-fecha", "hora_inicio"]
+        ordering = [
+            "-reservation_date",
+            "start_time"
+        ]
 
     def clean(self):
-        # La hora de inicio debe ser menor que la hora de finalización.
-        if self.hora_inicio and self.hora_fin:
-            if self.hora_inicio >= self.hora_fin:
+        # La hora inicial debe ser menor que la final.
+        if self.start_time and self.end_time:
+            if self.start_time >= self.end_time:
                 raise ValidationError(
-                    "La hora de inicio debe ser anterior a la hora de finalización."
+                    "La hora de inicio debe ser anterior "
+                    "a la hora de finalización."
                 )
 
-        # Una reserva cancelada no bloquea el horario.
-        if self.estado in ["CANCELLED", "EXPIRED"]:
+        # Las reservas canceladas o expiradas
+        # no bloquean disponibilidad.
+        if self.reservation_status in [
+            "CANCELLED",
+            "EXPIRED"
+        ]:
             return
 
-        # Comprobar si existe otra reserva que se cruce
-        # con la misma cancha, fecha y horario.
+        # Validar solapamiento.
         if (
-            self.cancha_id
-            and self.fecha
-            and self.hora_inicio
-            and self.hora_fin
+            self.court_id
+            and self.reservation_date
+            and self.start_time
+            and self.end_time
         ):
-            conflictos = Reserva.objects.filter(
-                cancha=self.cancha,
-                fecha=self.fecha,
-                hora_inicio__lt=self.hora_fin,
-                hora_fin__gt=self.hora_inicio
+            conflicts = Reservation.objects.filter(
+                court=self.court,
+                reservation_date=self.reservation_date,
+                start_time__lt=self.end_time,
+                end_time__gt=self.start_time
             ).exclude(
-                estado__in=["CANCELLED", "EXPIRED"]
+                reservation_status__in=[
+                    "CANCELLED",
+                    "EXPIRED"
+                ]
             )
 
-            # Si estamos editando una reserva existente,
-            # no debe compararse consigo misma.
+            # Al editar, no comparar la reserva consigo misma.
             if self.pk:
-                conflictos = conflictos.exclude(pk=self.pk)
+                conflicts = conflicts.exclude(
+                    pk=self.pk
+                )
 
-            if conflictos.exists():
+            if conflicts.exists():
                 raise ValidationError(
-                    "La cancha ya tiene una reserva que se cruza con este horario."
+                    "La cancha ya tiene una reserva "
+                    "que se cruza con este horario."
                 )
 
     def save(self, *args, **kwargs):
         self.full_clean()
-        super().save(*args, **kwargs)
+
+        super().save(
+            *args,
+            **kwargs
+        )
 
     def __str__(self):
         return (
-            f"{self.usuario.username} - "
-            f"{self.cancha.nombre} - "
-            f"{self.fecha} "
-            f"{self.hora_inicio}"
+            f"{self.user.username} - "
+            f"{self.court.court_name} - "
+            f"{self.reservation_date} "
+            f"{self.start_time}"
         )
-        
 
 
-class Pago(models.Model):
-    ESTADOS = [
+class Payment(models.Model):
+    PAYMENT_STATUSES = [
         ("PENDING", "Pendiente"),
         ("APPROVED", "Aprobado"),
         ("REJECTED", "Rechazado"),
     ]
 
-    TIPOS = [
+    PAYMENT_TYPES = [
         ("DEPOSIT", "Abono"),
         ("BALANCE", "Saldo"),
     ]
 
-    reserva = models.ForeignKey(
-        Reserva,
-        on_delete=models.PROTECT,
-        related_name="pagos"
+    # 1. payment_id
+    payment_id = models.BigAutoField(
+        primary_key=True
     )
 
-    monto = models.DecimalField(
+    # 2. reservation_id
+    reservation = models.ForeignKey(
+        Reservation,
+        on_delete=models.PROTECT,
+        related_name="payments",
+        db_column="reservation_id"
+    )
+
+    # 3. amount
+    amount = models.DecimalField(
         max_digits=10,
         decimal_places=2
     )
 
-    tipo = models.CharField(
+    # 4. payment_type
+    payment_type = models.CharField(
         max_length=20,
-        choices=TIPOS,
+        choices=PAYMENT_TYPES,
         default="DEPOSIT"
     )
 
-    estado = models.CharField(
+    # 5. payment_status
+    payment_status = models.CharField(
         max_length=20,
-        choices=ESTADOS,
+        choices=PAYMENT_STATUSES,
         default="PENDING"
     )
 
-    proveedor = models.CharField(
+    # 6. provider
+    provider = models.CharField(
         max_length=50,
         default="SIMULATED"
     )
 
-    referencia = models.CharField(
+    # 7. transaction_reference
+    transaction_reference = models.CharField(
         max_length=100,
         unique=True
     )
 
-    fecha_creacion = models.DateTimeField(
+    # 8. created_at
+    created_at = models.DateTimeField(
         auto_now_add=True
     )
 
-    fecha_aprobacion = models.DateTimeField(
+    # 9. approved_at
+    approved_at = models.DateTimeField(
         null=True,
         blank=True
     )
 
-    def __str__(self):
-        return (
-            f"Pago {self.referencia} - "
-            f"{self.reserva_id} - "
-            f"{self.estado}"
-        )
-
     class Meta:
+        db_table = "payments"
         verbose_name = "Pago"
         verbose_name_plural = "Pagos"
-        ordering = ["-fecha_creacion"]
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return (
+            f"Pago {self.transaction_reference} - "
+            f"{self.reservation_id} - "
+            f"{self.payment_status}"
+        )

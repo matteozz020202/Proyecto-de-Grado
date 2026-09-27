@@ -4,92 +4,109 @@ from django.contrib.auth.decorators import login_required
 from django.shortcuts import get_object_or_404, render
 from django.utils import timezone
 
-from reservations.services import obtener_disponibilidad
+from reservations.services import get_availability
 
-from .models import Venue, Cancha
+from .models import Venue, Court
 
 
 @login_required
 def establecimientos(request):
-    establecimientos = Venue.objects.filter(
-        activo=True
-    ).order_by("nombre")
+    venues = Venue.objects.filter(
+        is_active=True
+    ).order_by(
+        "venue_name"
+    )
 
     return render(
         request,
         "courts/establecimientos.html",
         {
-            "establecimientos": establecimientos
+            "establecimientos": venues
         }
     )
 
 
 @login_required
-def canchas_establecimiento(request, venue_id):
-    establecimiento = get_object_or_404(
+def canchas_establecimiento(
+    request,
+    venue_id
+):
+    venue = get_object_or_404(
         Venue,
-        id=venue_id,
-        activo=True
+        venue_id=venue_id,
+        is_active=True
     )
 
-    canchas = Cancha.objects.filter(
-        venue=establecimiento,
-        activa=True
-    ).order_by("nombre")
+    courts = Court.objects.filter(
+        venue=venue,
+        is_active=True
+    ).order_by(
+        "court_name"
+    )
 
     return render(
         request,
         "courts/canchas.html",
         {
-            "establecimiento": establecimiento,
-            "canchas": canchas
+            "establecimiento": venue,
+            "canchas": courts
         }
     )
 
+
 @login_required
-def disponibilidad_cancha(request, cancha_id):
-    cancha = get_object_or_404(
-        Cancha.objects.select_related("venue"),
-        id=cancha_id,
-        activa=True
+def disponibilidad_cancha(
+    request,
+    cancha_id
+):
+    court = get_object_or_404(
+        Court.objects.select_related(
+            "venue"
+        ),
+        court_id=cancha_id,
+        is_active=True
     )
 
-    fecha_seleccionada = None
+    selected_date = None
     slots = None
     error = None
 
-    hoy = timezone.localdate()
+    today = timezone.localdate()
 
-    fecha_parametro = request.GET.get("fecha")
+    date_parameter = request.GET.get(
+        "fecha"
+    )
 
-    if fecha_parametro:
+    if date_parameter:
         try:
-            fecha_seleccionada = date.fromisoformat(
-                fecha_parametro
+            selected_date = date.fromisoformat(
+                date_parameter
             )
 
-            if fecha_seleccionada < hoy:
+            if selected_date < today:
                 error = (
                     "No puedes consultar disponibilidad "
                     "para una fecha anterior a hoy."
                 )
             else:
-                slots = obtener_disponibilidad(
-                    cancha,
-                    fecha_seleccionada
+                slots = get_availability(
+                    court,
+                    selected_date
                 )
 
         except ValueError:
-            error = "La fecha seleccionada no es válida."
+            error = (
+                "La fecha seleccionada no es válida."
+            )
 
     return render(
         request,
         "courts/disponibilidad.html",
         {
-            "cancha": cancha,
-            "fecha_seleccionada": fecha_seleccionada,
+            "cancha": court,
+            "fecha_seleccionada": selected_date,
             "slots": slots,
             "error": error,
-            "hoy": hoy,
+            "hoy": today,
         }
     )

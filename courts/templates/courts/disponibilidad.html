@@ -38,7 +38,7 @@
             </a>
 
             <a
-                href="{% url 'courts:canchas_establecimiento' cancha.venue.id %}"
+                href="{% url 'courts:canchas_establecimiento' cancha.venue.venue_id %}"
                 class="btn btn-outline-light"
             >
                 Volver
@@ -71,6 +71,7 @@
 
     {% endif %}
 
+
     <div class="row g-4">
 
         <!-- Información de la cancha -->
@@ -78,35 +79,46 @@
 
             <div class="card shadow-sm border-0">
 
-                {% if cancha.imagen %}
+                {% if cancha.image %}
 
                     <img
-                        src="{{ cancha.imagen.url }}"
+                        src="{{ cancha.image.url }}"
                         class="card-img-top"
-                        alt="{{ cancha.nombre }}"
+                        alt="{{ cancha.court_name }}"
                         style="height: 240px; object-fit: cover;"
                     >
+
+                {% else %}
+
+                    <div
+                        class="bg-secondary-subtle d-flex align-items-center justify-content-center"
+                        style="height: 240px;"
+                    >
+                        <span class="text-muted">
+                            Sin imagen
+                        </span>
+                    </div>
 
                 {% endif %}
 
                 <div class="card-body">
 
                     <h3 class="h4">
-                        {{ cancha.nombre }}
+                        {{ cancha.court_name }}
                     </h3>
 
                     <p class="text-muted">
-                        {{ cancha.venue.nombre }}
+                        {{ cancha.venue.venue_name }}
                     </p>
 
                     <p>
                         <strong>Precio por hora:</strong>
-                        ${{ cancha.precio_hora|floatformat:0 }}
+                        ${{ cancha.price_per_hour|floatformat:0 }}
                     </p>
 
                     <p class="mb-0">
                         <strong>Abono requerido:</strong>
-                        {{ cancha.venue.porcentaje_abono }}%
+                        {{ cancha.venue.deposit_percentage }}%
                     </p>
 
                 </div>
@@ -200,12 +212,12 @@
                                     <div class="col-6 col-md-4">
 
                                         <a
-                                            href="{% url 'reservations:resumen_reserva' cancha.id %}?fecha={{ fecha_seleccionada|date:'Y-m-d' }}&inicio={{ slot.hora_inicio|time:'H:i' }}&fin={{ slot.hora_fin|time:'H:i' }}"
+                                            href="{% url 'reservations:resumen_reserva' cancha.court_id %}?fecha={{ fecha_seleccionada|date:'Y-m-d' }}&inicio={{ slot.start_time|time:'H:i' }}&fin={{ slot.end_time|time:'H:i' }}"
                                             class="btn btn-outline-primary w-100"
                                         >
-                                            {{ slot.hora_inicio|time:"H:i" }}
+                                            {{ slot.start_time|time:"H:i" }}
                                             -
-                                            {{ slot.hora_fin|time:"H:i" }}
+                                            {{ slot.end_time|time:"H:i" }}
                                         </a>
 
                                     </div>

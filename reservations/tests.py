@@ -6,392 +6,391 @@ from django.core.exceptions import ValidationError
 from django.test import TestCase
 from django.utils import timezone
 
-from courts.models import Venue, Cancha, Horario
+from courts.models import Venue, Court, CourtSchedule
 
-from .models import Reserva, Pago
 from .services import (
-    cancelar_reserva,
-    crear_reserva_pendiente,
-    expirar_reservas_pendientes,
-    obtener_disponibilidad,
-    procesar_pago_simulado,
+    cancel_reservation,
+    create_pending_reservation,
+    expire_pending_reservations,
+    get_availability,
+    process_simulated_payment,
 )
 
 
-class ReservaFlowTests(TestCase):
+class ReservationFlowTests(TestCase):
 
     def setUp(self):
         # Usuario de prueba
-        self.usuario = User.objects.create_user(
+        self.user = User.objects.create_user(
             username="usuario_test",
             password="Test12345!"
         )
 
         # Establecimiento
         self.venue = Venue.objects.create(
-            nombre="Complejo Test",
-            direccion="Calle 1 # 1-1",
-            ciudad="Barranquilla",
-            porcentaje_abono=Decimal("30.00"),
-            activo=True
+            venue_name="Complejo Test",
+            city="Barranquilla",
+            address="Calle 1 # 1-1",
+            deposit_percentage=Decimal("30.00"),
+            is_active=True
         )
 
         # Cancha
-        self.cancha = Cancha.objects.create(
+        self.court = Court.objects.create(
             venue=self.venue,
-            nombre="Cancha Test",
-            descripcion="Cancha para pruebas",
-            precio_hora=Decimal("120000.00"),
-            activa=True
+            court_name="Cancha Test",
+            price_per_hour=Decimal("120000.00"),
+            is_active=True,
+            description="Cancha para pruebas"
         )
 
         # Fecha futura
-        self.fecha = timezone.localdate() + timedelta(days=7)
+        self.reservation_date = (
+            timezone.localdate()
+            + timedelta(days=7)
+        )
 
         # Horario correspondiente al día elegido
-        Horario.objects.create(
-            cancha=self.cancha,
-            dia_semana=self.fecha.isoweekday(),
-            hora_inicio=time(8, 0),
-            hora_fin=time(22, 0),
-            duracion_slot_minutos=60,
-            activo=True
+        CourtSchedule.objects.create(
+            court=self.court,
+            day_of_week=self.reservation_date.isoweekday(),
+            start_time=time(8, 0),
+            end_time=time(22, 0),
+            slot_duration_minutes=60,
+            is_active=True
         )
 
-    def crear_reserva(self):
-        return crear_reserva_pendiente(
-            usuario=self.usuario,
-            cancha=self.cancha,
-            fecha=self.fecha,
-            hora_inicio=time(10, 0),
-            hora_fin=time(11, 0)
+    def create_reservation(self):
+        return create_pending_reservation(
+            user=self.user,
+            court=self.court,
+            reservation_date=self.reservation_date,
+            start_time=time(10, 0),
+            end_time=time(11, 0)
         )
 
-    def test_crear_reserva_pending_payment(self):
-        reserva = self.crear_reserva()
+    def test_create_pending_payment_reservation(self):
+        reservation = self.create_reservation()
 
         self.assertEqual(
-            reserva.estado,
+            reservation.reservation_status,
             "PENDING_PAYMENT"
         )
 
         self.assertEqual(
-            reserva.precio,
+            reservation.total_amount,
             Decimal("120000.00")
         )
 
         self.assertEqual(
-            reserva.abono_requerido,
+            reservation.deposit_required,
             Decimal("36000.00")
         )
 
         self.assertEqual(
-            reserva.saldo_pendiente,
+            reservation.remaining_amount,
             Decimal("84000.00")
         )
 
         self.assertIsNotNone(
-            reserva.hold_expira_en
+            reservation.hold_expires_at
         )
 
-    def test_no_permite_doble_reserva(self):
-        self.crear_reserva()
+    def test_duplicate_reservation_is_rejected(self):
+        self.create_reservation()
 
         with self.assertRaises(ValidationError):
-            crear_reserva_pendiente(
-                usuario=self.usuario,
-                cancha=self.cancha,
-                fecha=self.fecha,
-                hora_inicio=time(10, 0),
-                hora_fin=time(11, 0)
+            create_pending_reservation(
+                user=self.user,
+                court=self.court,
+                reservation_date=self.reservation_date,
+                start_time=time(10, 0),
+                end_time=time(11, 0)
             )
 
-    def test_detecta_solapamiento_parcial(self):
-        self.crear_reserva()
+    def test_partial_overlap_is_rejected(self):
+        self.create_reservation()
 
         with self.assertRaises(ValidationError):
-            crear_reserva_pendiente(
-                usuario=self.usuario,
-                cancha=self.cancha,
-                fecha=self.fecha,
-                hora_inicio=time(10, 30),
-                hora_fin=time(11, 30)
+            create_pending_reservation(
+                user=self.user,
+                court=self.court,
+                reservation_date=self.reservation_date,
+                start_time=time(10, 30),
+                end_time=time(11, 30)
             )
 
-    def test_permite_horarios_consecutivos(self):
-        self.crear_reserva()
+    def test_consecutive_time_slot_is_allowed(self):
+        self.create_reservation()
 
-        segunda = crear_reserva_pendiente(
-            usuario=self.usuario,
-            cancha=self.cancha,
-            fecha=self.fecha,
-            hora_inicio=time(11, 0),
-            hora_fin=time(12, 0)
+        second_reservation = create_pending_reservation(
+            user=self.user,
+            court=self.court,
+            reservation_date=self.reservation_date,
+            start_time=time(11, 0),
+            end_time=time(12, 0)
         )
 
         self.assertEqual(
-            segunda.estado,
+            second_reservation.reservation_status,
             "PENDING_PAYMENT"
         )
 
-    def test_pago_rejected_no_confirma(self):
-        reserva = self.crear_reserva()
+    def test_rejected_payment_does_not_confirm(self):
+        reservation = self.create_reservation()
 
-        pago = procesar_pago_simulado(
-            reserva,
+        payment = process_simulated_payment(
+            reservation,
             "REJECTED"
         )
 
-        reserva.refresh_from_db()
+        reservation.refresh_from_db()
 
         self.assertEqual(
-            pago.estado,
+            payment.payment_status,
             "REJECTED"
         )
 
         self.assertEqual(
-            reserva.estado,
+            reservation.reservation_status,
             "PENDING_PAYMENT"
         )
 
         self.assertEqual(
-            reserva.pagos.count(),
+            reservation.payments.count(),
             1
         )
 
-    def test_pago_approved_confirma_reserva(self):
-        reserva = self.crear_reserva()
+    def test_approved_payment_confirms_reservation(self):
+        reservation = self.create_reservation()
 
-        pago = procesar_pago_simulado(
-            reserva,
+        payment = process_simulated_payment(
+            reservation,
             "APPROVED"
         )
 
-        reserva.refresh_from_db()
+        reservation.refresh_from_db()
 
         self.assertEqual(
-            pago.estado,
+            payment.payment_status,
             "APPROVED"
         )
 
         self.assertEqual(
-            reserva.estado,
+            reservation.reservation_status,
             "CONFIRMED"
         )
 
         self.assertIsNone(
-            reserva.hold_expira_en
+            reservation.hold_expires_at
         )
 
-    def test_rejected_y_reintento_approved(self):
-        reserva = self.crear_reserva()
+    def test_rejected_then_approved_retry(self):
+        reservation = self.create_reservation()
 
-        pago1 = procesar_pago_simulado(
-            reserva,
+        payment_1 = process_simulated_payment(
+            reservation,
             "REJECTED"
         )
 
-        reserva.refresh_from_db()
+        reservation.refresh_from_db()
 
-        pago2 = procesar_pago_simulado(
-            reserva,
+        payment_2 = process_simulated_payment(
+            reservation,
             "APPROVED"
         )
 
-        reserva.refresh_from_db()
+        reservation.refresh_from_db()
 
         self.assertEqual(
-            pago1.estado,
+            payment_1.payment_status,
             "REJECTED"
         )
 
         self.assertEqual(
-            pago2.estado,
+            payment_2.payment_status,
             "APPROVED"
         )
 
         self.assertEqual(
-            reserva.estado,
+            reservation.reservation_status,
             "CONFIRMED"
         )
 
         self.assertEqual(
-            reserva.pagos.count(),
+            reservation.payments.count(),
             2
         )
 
-    def test_reserva_expirada_libera_horario(self):
-        reserva = self.crear_reserva()
+    def test_expired_reservation_releases_time_slot(self):
+        reservation = self.create_reservation()
 
-        reserva.hold_expira_en = (
+        reservation.hold_expires_at = (
             timezone.now()
             - timedelta(minutes=1)
         )
 
-        reserva.save()
+        reservation.save()
 
-        cantidad = expirar_reservas_pendientes()
+        count = expire_pending_reservations()
 
-        reserva.refresh_from_db()
+        reservation.refresh_from_db()
 
         self.assertGreaterEqual(
-            cantidad,
+            count,
             1
         )
 
         self.assertEqual(
-            reserva.estado,
+            reservation.reservation_status,
             "EXPIRED"
         )
 
-        slots = obtener_disponibilidad(
-            self.cancha,
-            self.fecha
+        slots = get_availability(
+            self.court,
+            self.reservation_date
         )
 
-        horario_disponible = any(
-            slot["hora_inicio"] == time(10, 0)
-            and slot["hora_fin"] == time(11, 0)
+        time_slot_available = any(
+            slot["start_time"] == time(10, 0)
+            and slot["end_time"] == time(11, 0)
             for slot in slots
         )
 
         self.assertTrue(
-            horario_disponible
+            time_slot_available
         )
 
-    def test_cancelar_reserva_libera_horario(self):
-        reserva = self.crear_reserva()
+    def test_cancelled_reservation_releases_time_slot(self):
+        reservation = self.create_reservation()
 
-        procesar_pago_simulado(
-            reserva,
+        process_simulated_payment(
+            reservation,
             "APPROVED"
         )
 
-        reserva.refresh_from_db()
+        reservation.refresh_from_db()
 
         self.assertEqual(
-            reserva.estado,
+            reservation.reservation_status,
             "CONFIRMED"
         )
 
-        cancelar_reserva(
-            reserva
+        cancel_reservation(
+            reservation
         )
 
-        reserva.refresh_from_db()
+        reservation.refresh_from_db()
 
         self.assertEqual(
-            reserva.estado,
+            reservation.reservation_status,
             "CANCELLED"
         )
 
         self.assertIsNotNone(
-            reserva.fecha_cancelacion
+            reservation.cancelled_at
         )
 
-        slots = obtener_disponibilidad(
-            self.cancha,
-            self.fecha
+        slots = get_availability(
+            self.court,
+            self.reservation_date
         )
 
-        horario_disponible = any(
-            slot["hora_inicio"] == time(10, 0)
-            and slot["hora_fin"] == time(11, 0)
+        time_slot_available = any(
+            slot["start_time"] == time(10, 0)
+            and slot["end_time"] == time(11, 0)
             for slot in slots
         )
 
         self.assertTrue(
-            horario_disponible
+            time_slot_available
         )
 
-    def test_no_permite_pagar_reserva_confirmada_dos_veces(self):
-        reserva = self.crear_reserva()
+    def test_confirmed_reservation_cannot_be_paid_twice(self):
+        reservation = self.create_reservation()
 
-        procesar_pago_simulado(
-            reserva,
+        process_simulated_payment(
+            reservation,
             "APPROVED"
         )
 
-        reserva.refresh_from_db()
+        reservation.refresh_from_db()
 
         with self.assertRaises(ValidationError):
-            procesar_pago_simulado(
-                reserva,
+            process_simulated_payment(
+                reservation,
                 "APPROVED"
             )
 
-    def test_conflicto_cuando_nueva_empieza_antes(self):
-        self.crear_reserva()
+    def test_conflict_when_new_reservation_starts_before_existing(self):
+        self.create_reservation()
 
         with self.assertRaises(ValidationError):
-            crear_reserva_pendiente(
-                usuario=self.usuario,
-                cancha=self.cancha,
-                fecha=self.fecha,
-                hora_inicio=time(9, 30),
-                hora_fin=time(10, 30)
+            create_pending_reservation(
+                user=self.user,
+                court=self.court,
+                reservation_date=self.reservation_date,
+                start_time=time(9, 30),
+                end_time=time(10, 30)
             )
 
-
-    def test_conflicto_cuando_nueva_envuelve_existente(self):
-        self.crear_reserva()
+    def test_conflict_when_new_reservation_wraps_existing(self):
+        self.create_reservation()
 
         with self.assertRaises(ValidationError):
-            crear_reserva_pendiente(
-                usuario=self.usuario,
-                cancha=self.cancha,
-                fecha=self.fecha,
-                hora_inicio=time(9, 30),
-                hora_fin=time(11, 30)
+            create_pending_reservation(
+                user=self.user,
+                court=self.court,
+                reservation_date=self.reservation_date,
+                start_time=time(9, 30),
+                end_time=time(11, 30)
             )
 
+    def test_time_slot_immediately_before_is_allowed(self):
+        self.create_reservation()
 
-    def test_permite_horario_justo_antes(self):
-        self.crear_reserva()
-
-        reserva_anterior = crear_reserva_pendiente(
-            usuario=self.usuario,
-            cancha=self.cancha,
-            fecha=self.fecha,
-            hora_inicio=time(9, 0),
-            hora_fin=time(10, 0)
+        previous_reservation = create_pending_reservation(
+            user=self.user,
+            court=self.court,
+            reservation_date=self.reservation_date,
+            start_time=time(9, 0),
+            end_time=time(10, 0)
         )
 
         self.assertEqual(
-            reserva_anterior.estado,
+            previous_reservation.reservation_status,
             "PENDING_PAYMENT"
         )
 
-
-    def test_misma_hora_en_otra_cancha_es_permitida(self):
-        otra_cancha = Cancha.objects.create(
+    def test_same_time_on_different_court_is_allowed(self):
+        second_court = Court.objects.create(
             venue=self.venue,
-            nombre="Cancha Test 2",
-            descripcion="Segunda cancha para pruebas",
-            precio_hora=Decimal("120000.00"),
-            activa=True
+            court_name="Cancha Test 2",
+            price_per_hour=Decimal("120000.00"),
+            is_active=True,
+            description="Segunda cancha para pruebas"
         )
 
-        Horario.objects.create(
-            cancha=otra_cancha,
-            dia_semana=self.fecha.isoweekday(),
-            hora_inicio=time(8, 0),
-            hora_fin=time(22, 0),
-            duracion_slot_minutos=60,
-            activo=True
+        CourtSchedule.objects.create(
+            court=second_court,
+            day_of_week=self.reservation_date.isoweekday(),
+            start_time=time(8, 0),
+            end_time=time(22, 0),
+            slot_duration_minutes=60,
+            is_active=True
         )
 
-        self.crear_reserva()
+        self.create_reservation()
 
-        segunda_reserva = crear_reserva_pendiente(
-            usuario=self.usuario,
-            cancha=otra_cancha,
-            fecha=self.fecha,
-            hora_inicio=time(10, 0),
-            hora_fin=time(11, 0)
+        second_reservation = create_pending_reservation(
+            user=self.user,
+            court=second_court,
+            reservation_date=self.reservation_date,
+            start_time=time(10, 0),
+            end_time=time(11, 0)
         )
 
         self.assertEqual(
-            segunda_reserva.estado,
+            second_reservation.reservation_status,
             "PENDING_PAYMENT"
         )

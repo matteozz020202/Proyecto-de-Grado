@@ -69,48 +69,49 @@
 
                     <div class="card shadow-sm border-0 h-100">
 
+                        {% if establecimiento.image %}
+
+                            <img
+                                src="{{ establecimiento.image.url }}"
+                                class="card-img-top"
+                                alt="{{ establecimiento.venue_name }}"
+                                style="height: 220px; object-fit: cover;"
+                            >
+
+                        {% else %}
+
+                            <div
+                                class="bg-secondary-subtle d-flex align-items-center justify-content-center"
+                                style="height: 220px;"
+                            >
+                                <span class="text-muted">
+                                    Sin imagen
+                                </span>
+                            </div>
+
+                        {% endif %}
+
                         <div class="card-body p-4">
-                            {% if establecimiento.imagen %}
-
-                                <img
-                                    src="{{ establecimiento.imagen.url }}"
-                                    class="card-img-top"
-                                    alt="{{ establecimiento.nombre }}"
-                                    style="height: 220px; object-fit: cover;"
-                                >
-
-                            {% else %}
-
-                                <div
-                                    class="bg-secondary-subtle d-flex align-items-center justify-content-center"
-                                    style="height: 220px;"
-                                >
-                                    <span class="text-muted">
-                                        Sin imagen
-                                    </span>
-                                </div>
-
-                            {% endif %}
 
                             <h4 class="card-title">
-                                {{ establecimiento.nombre }}
+                                {{ establecimiento.venue_name }}
                             </h4>
 
                             <p class="text-muted mb-2">
-                                {{ establecimiento.direccion }}
+                                {{ establecimiento.address }}
                             </p>
 
                             <p class="mb-3">
-                                {{ establecimiento.ciudad }}
+                                {{ establecimiento.city }}
                             </p>
 
                             <p class="mb-3">
                                 <strong>Abono requerido:</strong>
-                                {{ establecimiento.porcentaje_abono }}%
+                                {{ establecimiento.deposit_percentage }}%
                             </p>
 
                             <a
-                                href="{% url 'courts:canchas_establecimiento' establecimiento.id %}"
+                                href="{% url 'courts:canchas_establecimiento' establecimiento.venue_id %}"
                                 class="btn btn-primary"
                             >
                                 Ver canchas

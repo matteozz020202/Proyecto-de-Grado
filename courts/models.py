@@ -1,21 +1,31 @@
 from django.db import models
 from django.core.validators import MinValueValidator, MaxValueValidator
 
+
 class Venue(models.Model):
-    nombre = models.CharField(
+    # 1. venue_id
+    venue_id = models.BigAutoField(
+        primary_key=True
+    )
+
+    # 2. venue_name
+    venue_name = models.CharField(
         max_length=150
     )
 
-    direccion = models.CharField(
-        max_length=255
-    )
-
-    ciudad = models.CharField(
+    # 3. city
+    city = models.CharField(
         max_length=100,
         default="Barranquilla"
     )
 
-    porcentaje_abono = models.DecimalField(
+    # 4. address
+    address = models.CharField(
+        max_length=255
+    )
+
+    # 5. deposit_percentage
+    deposit_percentage = models.DecimalField(
         max_digits=5,
         decimal_places=2,
         default=30,
@@ -26,70 +36,69 @@ class Venue(models.Model):
         verbose_name="Porcentaje de abono"
     )
 
-    activo = models.BooleanField(
+    # 6. is_active
+    is_active = models.BooleanField(
         default=True
     )
 
-    fecha_creacion = models.DateTimeField(
-        auto_now_add=True
-    )
-
-    fecha_actualizacion = models.DateTimeField(
-        auto_now=True
-    )
-
-    imagen = models.ImageField(
+    # Campo adicional de la aplicación.
+    image = models.ImageField(
         upload_to="venues/",
         null=True,
         blank=True,
         verbose_name="Imagen del establecimiento"
     )
 
-     
-
     class Meta:
+        db_table = "venues"
         verbose_name = "Establecimiento"
         verbose_name_plural = "Establecimientos"
-        ordering = ["nombre"]
+        ordering = ["venue_name"]
 
     def __str__(self):
-        return self.nombre
+        return self.venue_name
 
 
-class Cancha(models.Model):
+class Court(models.Model):
+    # 1. court_id
+    court_id = models.BigAutoField(
+        primary_key=True
+    )
+
+    # 2. venue_id
+    #
+    # En Python usamos court.venue.
+    # En PostgreSQL la columna física será venue_id.
     venue = models.ForeignKey(
         Venue,
         on_delete=models.PROTECT,
-        related_name="canchas",
+        related_name="courts",
+        db_column="venue_id",
         verbose_name="Establecimiento"
     )
 
-    nombre = models.CharField(
+    # 3. court_name
+    court_name = models.CharField(
         max_length=100
     )
 
-    descripcion = models.TextField(
-        blank=True
-    )
-
-    precio_hora = models.DecimalField(
+    # 4. price_per_hour
+    price_per_hour = models.DecimalField(
         max_digits=10,
         decimal_places=2
     )
 
-    activa = models.BooleanField(
+    # 5. is_active
+    is_active = models.BooleanField(
         default=True
     )
 
-    fecha_creacion = models.DateTimeField(
-        auto_now_add=True
+    # Campos adicionales de la aplicación.
+    description = models.TextField(
+        blank=True
     )
 
-    fecha_actualizacion = models.DateTimeField(
-        auto_now=True
-    )
-
-    imagen = models.ImageField(
+    image = models.ImageField(
         upload_to="courts/",
         null=True,
         blank=True,
@@ -97,19 +106,23 @@ class Cancha(models.Model):
     )
 
     class Meta:
+        db_table = "courts"
         verbose_name = "Cancha"
         verbose_name_plural = "Canchas"
-        ordering = ["nombre"]
+        ordering = ["court_name"]
 
     def __str__(self):
         if self.venue:
-            return f"{self.venue.nombre} - {self.nombre}"
+            return (
+                f"{self.venue.venue_name} - "
+                f"{self.court_name}"
+            )
 
-        return self.nombre
+        return self.court_name
 
 
-class Horario(models.Model):
-    DIAS_SEMANA = [
+class CourtSchedule(models.Model):
+    DAYS_OF_WEEK = [
         (1, "Lunes"),
         (2, "Martes"),
         (3, "Miércoles"),
@@ -119,41 +132,55 @@ class Horario(models.Model):
         (7, "Domingo"),
     ]
 
-    cancha = models.ForeignKey(
-        Cancha,
+    # 1. schedule_id
+    schedule_id = models.BigAutoField(
+        primary_key=True
+    )
+
+    # 2. court_id
+    court = models.ForeignKey(
+        Court,
         on_delete=models.CASCADE,
-        related_name="horarios"
+        related_name="schedules",
+        db_column="court_id"
     )
 
-    dia_semana = models.IntegerField(
-        choices=DIAS_SEMANA
+    # 3. day_of_week
+    day_of_week = models.IntegerField(
+        choices=DAYS_OF_WEEK
     )
 
-    hora_inicio = models.TimeField()
-    hora_fin = models.TimeField()
+    # 4. start_time
+    start_time = models.TimeField()
 
-    duracion_slot_minutos = models.PositiveSmallIntegerField(
+    # 5. end_time
+    end_time = models.TimeField()
+
+    # 6. slot_duration_minutes
+    slot_duration_minutes = models.PositiveSmallIntegerField(
         default=60,
         verbose_name="Duración del slot en minutos"
     )
 
-    activo = models.BooleanField(
+    # 7. is_active
+    is_active = models.BooleanField(
         default=True
     )
 
     class Meta:
+        db_table = "court_schedule"
         verbose_name = "Horario"
         verbose_name_plural = "Horarios"
         ordering = [
-            "cancha",
-            "dia_semana",
-            "hora_inicio"
+            "court",
+            "day_of_week",
+            "start_time"
         ]
 
     def __str__(self):
         return (
-            f"{self.cancha} - "
-            f"{self.get_dia_semana_display()} "
-            f"{self.hora_inicio} - "
-            f"{self.hora_fin}"
+            f"{self.court} - "
+            f"{self.get_day_of_week_display()} "
+            f"{self.start_time} - "
+            f"{self.end_time}"
         )

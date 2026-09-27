@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 {% load tz %}
+
 <html lang="es">
 <head>
     <meta charset="UTF-8">
@@ -17,6 +18,7 @@
 
 <nav class="navbar navbar-dark bg-dark">
     <div class="container">
+
         <a
             class="navbar-brand fw-bold"
             href="{% url 'users:home' %}"
@@ -27,8 +29,10 @@
         <span class="navbar-text text-white">
             {{ request.user.username }}
         </span>
+
     </div>
 </nav>
+
 
 <main class="container py-5">
 
@@ -51,13 +55,16 @@
 
     {% endif %}
 
+
     <div class="d-flex justify-content-between align-items-center mb-4">
+
         <div>
+
             <h1 class="h3 mb-1">
                 Mis reservas
             </h1>
 
-            <p class="text-muted mb-0">
+            <p class="text-muted mb-3">
                 Consulta el estado de tus reservas.
             </p>
 
@@ -67,8 +74,11 @@
             >
                 Volver al inicio
             </a>
+
         </div>
+
     </div>
+
 
     {% if reservas %}
 
@@ -85,42 +95,45 @@
                             <div class="d-flex justify-content-between align-items-start mb-3">
 
                                 <div>
+
                                     <h5 class="card-title mb-1">
-                                        {{ reserva.cancha.nombre }}
+                                        {{ reserva.court.court_name }}
                                     </h5>
 
                                     <small class="text-muted">
-                                        {{ reserva.cancha.venue.nombre }}
+                                        {{ reserva.court.venue.venue_name }}
                                     </small>
+
                                 </div>
+
 
                                 <div>
 
-                                    {% if reserva.estado == "CONFIRMED" %}
+                                    {% if reserva.reservation_status == "CONFIRMED" %}
 
                                         <span class="badge bg-success">
                                             Confirmada
                                         </span>
 
-                                    {% elif reserva.estado == "PENDING_PAYMENT" %}
+                                    {% elif reserva.reservation_status == "PENDING_PAYMENT" %}
 
                                         <span class="badge bg-warning text-dark">
                                             Pendiente de pago
                                         </span>
 
-                                    {% elif reserva.estado == "COMPLETED" %}
+                                    {% elif reserva.reservation_status == "COMPLETED" %}
 
                                         <span class="badge bg-primary">
                                             Completada
                                         </span>
 
-                                    {% elif reserva.estado == "CANCELLED" %}
+                                    {% elif reserva.reservation_status == "CANCELLED" %}
 
                                         <span class="badge bg-secondary">
                                             Cancelada
                                         </span>
 
-                                    {% elif reserva.estado == "EXPIRED" %}
+                                    {% elif reserva.reservation_status == "EXPIRED" %}
 
                                         <span class="badge bg-danger">
                                             Expirada
@@ -129,40 +142,65 @@
                                     {% endif %}
 
                                 </div>
+
                             </div>
+
 
                             <hr>
 
+
                             <p class="mb-2">
+
                                 <strong>Fecha:</strong>
-                                {{ reserva.fecha|date:"d/m/Y" }}
+
+                                {{ reserva.reservation_date|date:"d/m/Y" }}
+
                             </p>
 
+
                             <p class="mb-2">
+
                                 <strong>Horario:</strong>
-                                {{ reserva.hora_inicio|time:"H:i" }}
+
+                                {{ reserva.start_time|time:"H:i" }}
+
                                 -
-                                {{ reserva.hora_fin|time:"H:i" }}
+
+                                {{ reserva.end_time|time:"H:i" }}
+
                             </p>
 
+
                             <p class="mb-2">
+
                                 <strong>Valor total:</strong>
-                                ${{ reserva.precio|floatformat:0 }}
+
+                                ${{ reserva.total_amount|floatformat:0 }}
+
                             </p>
 
+
                             <p class="mb-2">
+
                                 <strong>Abono:</strong>
-                                ${{ reserva.abono_requerido|floatformat:0 }}
+
+                                ${{ reserva.deposit_required|floatformat:0 }}
+
                             </p>
+
 
                             <p class="mb-0">
+
                                 <strong>Saldo:</strong>
-                                ${{ reserva.saldo_pendiente|floatformat:0 }}
+
+                                ${{ reserva.remaining_amount|floatformat:0 }}
+
                             </p>
 
-                            {% if reserva.estado == "PENDING_PAYMENT" %}
 
-                                <p class="mb-2 text-warning">
+                            {% if reserva.reservation_status == "PENDING_PAYMENT" %}
+
+                                <p class="mb-2 mt-3 text-warning">
 
                                     <strong>
                                         Abono pendiente
@@ -172,21 +210,23 @@
 
                                     <small>
                                         Reserva temporal válida hasta:
-                                        {{ reserva.hold_expira_en|localtime|date:"d/m/Y H:i" }}
+
+                                        {{ reserva.hold_expires_at|localtime|date:"d/m/Y H:i" }}
                                     </small>
 
                                 </p>
 
                             {% endif %}
 
-                            {% if reserva.estado == "PENDING_PAYMENT" %}
+
+                            {% if reserva.reservation_status == "PENDING_PAYMENT" %}
 
                                 <hr>
 
                                 <div class="d-grid">
 
                                     <a
-                                        href="{% url 'reservations:pagar_reserva' reserva.id %}"
+                                        href="{% url 'reservations:pagar_reserva' reserva.reservation_id %}"
                                         class="btn btn-warning"
                                     >
                                         Realizar / reintentar abono
@@ -196,13 +236,14 @@
 
                             {% endif %}
 
-                            {% if reserva.estado == "CONFIRMED" %}
+
+                            {% if reserva.reservation_status == "CONFIRMED" %}
 
                                 <hr>
 
                                 <form
                                     method="POST"
-                                    action="{% url 'reservations:cancelar_reserva' reserva.id %}"
+                                    action="{% url 'reservations:cancelar_reserva' reserva.reservation_id %}"
                                     onsubmit="return confirm('¿Estás seguro de que deseas cancelar esta reserva?');"
                                 >
 
@@ -221,10 +262,11 @@
 
                         </div>
 
+
                         <div class="card-footer bg-white border-0">
 
                             <small class="text-muted">
-                                Reserva #{{ reserva.id }}
+                                Reserva #{{ reserva.reservation_id }}
                             </small>
 
                         </div>
@@ -258,6 +300,7 @@
     {% endif %}
 
 </main>
+
 
 <script
     src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js">

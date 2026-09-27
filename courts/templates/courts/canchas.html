@@ -51,7 +51,7 @@
     <div class="mb-4">
 
         <h1 class="h3">
-            {{ establecimiento.nombre }}
+            {{ establecimiento.venue_name }}
         </h1>
 
         <p class="text-muted">
@@ -71,38 +71,38 @@
 
                     <div class="card shadow-sm border-0 h-100">
 
+                        {% if cancha.image %}
+
+                            <img
+                                src="{{ cancha.image.url }}"
+                                class="card-img-top"
+                                alt="{{ cancha.court_name }}"
+                                style="height: 220px; object-fit: cover;"
+                            >
+
+                        {% else %}
+
+                            <div
+                                class="bg-secondary-subtle d-flex align-items-center justify-content-center"
+                                style="height: 220px;"
+                            >
+                                <span class="text-muted">
+                                    Sin imagen
+                                </span>
+                            </div>
+
+                        {% endif %}
+
                         <div class="card-body p-4">
 
-                            {% if cancha.imagen %}
-
-                                <img
-                                    src="{{ cancha.imagen.url }}"
-                                    class="card-img-top"
-                                    alt="{{ cancha.nombre }}"
-                                    style="height: 220px; object-fit: cover;"
-                                >
-
-                            {% else %}
-
-                                <div
-                                    class="bg-secondary-subtle d-flex align-items-center justify-content-center"
-                                    style="height: 220px;"
-                                >
-                                    <span class="text-muted">
-                                        Sin imagen
-                                    </span>
-                                </div>
-
-                            {% endif %}
-
                             <h4 class="card-title">
-                                {{ cancha.nombre }}
+                                {{ cancha.court_name }}
                             </h4>
 
-                            {% if cancha.descripcion %}
+                            {% if cancha.description %}
 
                                 <p class="text-muted">
-                                    {{ cancha.descripcion }}
+                                    {{ cancha.description }}
                                 </p>
 
                             {% endif %}
@@ -113,7 +113,7 @@
                                     Precio por hora:
                                 </strong>
 
-                                ${{ cancha.precio_hora|floatformat:0 }}
+                                ${{ cancha.price_per_hour|floatformat:0 }}
 
                             </p>
 
@@ -123,12 +123,12 @@
                                     Abono:
                                 </strong>
 
-                                {{ establecimiento.porcentaje_abono }}%
+                                {{ establecimiento.deposit_percentage }}%
 
                             </p>
 
                             <a
-                                href="{% url 'courts:disponibilidad_cancha' cancha.id %}"
+                                href="{% url 'courts:disponibilidad_cancha' cancha.court_id %}"
                                 class="btn btn-primary"
                             >
                                 Consultar disponibilidad

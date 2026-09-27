@@ -1,15 +1,16 @@
 from datetime import datetime, timedelta
 from decimal import Decimal
+from uuid import uuid4
 
 from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.utils import timezone
-from uuid import uuid4
-from courts.models import Horario
-from reservations.models import Reserva, Pago
+
+from courts.models import CourtSchedule
+from reservations.models import Reservation, Payment
 
 
-ESTADOS_QUE_BLOQUEAN = [
+BLOCKING_RESERVATION_STATUSES = [
     "PENDING_PAYMENT",
     "CONFIRMED",
     "COMPLETED",
@@ -17,409 +18,427 @@ ESTADOS_QUE_BLOQUEAN = [
 
 HOLD_MINUTES = 15
 
-def expirar_reservas_pendientes():
 
+def expire_pending_reservations():
     """
-    Marca como EXPIRED las reservas PENDING_PAYMENT
-    cuyo bloqueo temporal ya venció.
+    Marks as EXPIRED all PENDING_PAYMENT reservations
+    whose temporary hold has expired.
     """
 
-    ahora = timezone.now()
+    now = timezone.now()
 
-    cantidad = Reserva.objects.filter(
-        estado="PENDING_PAYMENT",
-        hold_expira_en__isnull=False,
-        hold_expira_en__lte=ahora
+    count = Reservation.objects.filter(
+        reservation_status="PENDING_PAYMENT",
+        hold_expires_at__isnull=False,
+        hold_expires_at__lte=now
     ).update(
-        estado="EXPIRED"
+        reservation_status="EXPIRED"
     )
 
-    return cantidad
+    return count
 
-def obtener_disponibilidad(cancha, fecha, duracion_minutos=None):
+
+def get_availability(
+    court,
+    reservation_date,
+    duration_minutes=None
+):
     """
-    Retorna los horarios disponibles de una cancha para una fecha determinada.
-
-    Por defecto genera bloques de 60 minutos.
+    Returns the available time slots for a court
+    on a specific date.
     """
-    # Expira las reservas pendientes de pago que ya no tienen bloqueo temporal
-    expirar_reservas_pendientes()
 
-    dia_semana = fecha.isoweekday()
+    # Expire old temporary reservations first.
+    expire_pending_reservations()
 
-    horarios = Horario.objects.filter(
-        cancha=cancha,
-        dia_semana=dia_semana,
-        activo=True
-    ).order_by("hora_inicio")
+    day_of_week = reservation_date.isoweekday()
 
-    if not horarios.exists():
+    schedules = CourtSchedule.objects.filter(
+        court=court,
+        day_of_week=day_of_week,
+        is_active=True
+    ).order_by(
+        "start_time"
+    )
+
+    if not schedules.exists():
         return []
 
-    reservas = Reserva.objects.filter(
-        cancha=cancha,
-        fecha=fecha,
-        estado__in=ESTADOS_QUE_BLOQUEAN
+    reservations = Reservation.objects.filter(
+        court=court,
+        reservation_date=reservation_date,
+        reservation_status__in=BLOCKING_RESERVATION_STATUSES
     )
 
-    slots_disponibles = []
+    available_slots = []
 
-    for horario in horarios:
+    for schedule in schedules:
 
-        slot_minutos = (
-            duracion_minutos
-            if duracion_minutos is not None
-            else horario.duracion_slot_minutos
+        slot_minutes = (
+            duration_minutes
+            if duration_minutes is not None
+            else schedule.slot_duration_minutes
         )
 
-        inicio_actual = datetime.combine(
-            fecha,
-            horario.hora_inicio
+        current_start = datetime.combine(
+            reservation_date,
+            schedule.start_time
         )
 
-        fin_horario = datetime.combine(
-            fecha,
-            horario.hora_fin
+        schedule_end = datetime.combine(
+            reservation_date,
+            schedule.end_time
         )
 
-        while inicio_actual + timedelta(minutes=slot_minutos) <= fin_horario:
-            fin_actual = inicio_actual + timedelta(
-                minutes=slot_minutos
+        while (
+            current_start
+            + timedelta(minutes=slot_minutes)
+            <= schedule_end
+        ):
+            current_end = (
+                current_start
+                + timedelta(minutes=slot_minutes)
             )
 
-            existe_conflicto = reservas.filter(
-                hora_inicio__lt=fin_actual.time(),
-                hora_fin__gt=inicio_actual.time()
+            conflict_exists = reservations.filter(
+                start_time__lt=current_end.time(),
+                end_time__gt=current_start.time()
             ).exists()
 
-            if not existe_conflicto:
-                slots_disponibles.append({
-                    "hora_inicio": inicio_actual.time(),
-                    "hora_fin": fin_actual.time(),
+            if not conflict_exists:
+                available_slots.append({
+                    "start_time": current_start.time(),
+                    "end_time": current_end.time(),
                 })
 
-            inicio_actual = fin_actual
+            current_start = current_end
 
-    return slots_disponibles
+    return available_slots
 
 
-def calcular_valores_reserva(
-    cancha,
-    fecha,
-    hora_inicio,
-    hora_fin
+def calculate_reservation_values(
+    court,
+    reservation_date,
+    start_time,
+    end_time
 ):
     """
-    Calcula el valor total, abono requerido y saldo
-    para una reserva.
+    Calculates reservation duration, total amount,
+    required deposit and remaining amount.
     """
 
-    if hora_inicio >= hora_fin:
+    if start_time >= end_time:
         raise ValidationError(
-            "La hora de inicio debe ser anterior a la hora de finalización."
+            "La hora de inicio debe ser anterior "
+            "a la hora de finalización."
         )
 
-    inicio_dt = datetime.combine(
-        fecha,
-        hora_inicio
+    start_datetime = datetime.combine(
+        reservation_date,
+        start_time
     )
 
-    fin_dt = datetime.combine(
-        fecha,
-        hora_fin
+    end_datetime = datetime.combine(
+        reservation_date,
+        end_time
     )
 
-    duracion_segundos = Decimal(
-        str((fin_dt - inicio_dt).total_seconds())
-    )
-
-    duracion_horas = (
-        duracion_segundos / Decimal("3600")
-    )
-
-    valor_total = (
-        cancha.precio_hora * duracion_horas
-    ).quantize(Decimal("0.01"))
-
-    porcentaje_abono = (
-        cancha.venue.porcentaje_abono
-    )
-
-    abono_requerido = (
-        valor_total
-        * porcentaje_abono
-        / Decimal("100")
-    ).quantize(Decimal("0.01"))
-
-    saldo_pendiente = (
-        valor_total - abono_requerido
-    ).quantize(Decimal("0.01"))
-
-    return {
-        "duracion_horas": duracion_horas,
-        "valor_total": valor_total,
-        "porcentaje_abono": porcentaje_abono,
-        "abono_requerido": abono_requerido,
-        "saldo_pendiente": saldo_pendiente,
-    }
-
-
-def calcular_valores_reserva(
-    cancha,
-    fecha,
-    hora_inicio,
-    hora_fin
-):
-    """
-    Calcula el valor total, abono requerido y saldo pendiente
-    de una reserva.
-    """
-
-    if hora_inicio >= hora_fin:
-        raise ValidationError(
-            "La hora de inicio debe ser anterior a la hora de finalización."
+    duration_seconds = Decimal(
+        str(
+            (
+                end_datetime
+                - start_datetime
+            ).total_seconds()
         )
-
-    inicio_dt = datetime.combine(
-        fecha,
-        hora_inicio
     )
 
-    fin_dt = datetime.combine(
-        fecha,
-        hora_fin
+    duration_hours = (
+        duration_seconds
+        / Decimal("3600")
     )
 
-    duracion_segundos = Decimal(
-        str((fin_dt - inicio_dt).total_seconds())
+    total_amount = (
+        court.price_per_hour
+        * duration_hours
+    ).quantize(
+        Decimal("0.01")
     )
 
-    duracion_horas = (
-        duracion_segundos / Decimal("3600")
+    deposit_percentage = (
+        court.venue.deposit_percentage
     )
 
-    valor_total = (
-        cancha.precio_hora * duracion_horas
-    ).quantize(Decimal("0.01"))
-
-    porcentaje_abono = (
-        cancha.venue.porcentaje_abono
-    )
-
-    abono_requerido = (
-        valor_total
-        * porcentaje_abono
+    deposit_required = (
+        total_amount
+        * deposit_percentage
         / Decimal("100")
-    ).quantize(Decimal("0.01"))
+    ).quantize(
+        Decimal("0.01")
+    )
 
-    saldo_pendiente = (
-        valor_total - abono_requerido
-    ).quantize(Decimal("0.01"))
+    remaining_amount = (
+        total_amount
+        - deposit_required
+    ).quantize(
+        Decimal("0.01")
+    )
 
     return {
-        "duracion_horas": duracion_horas,
-        "valor_total": valor_total,
-        "porcentaje_abono": porcentaje_abono,
-        "abono_requerido": abono_requerido,
-        "saldo_pendiente": saldo_pendiente,
+        "duration_hours": duration_hours,
+        "total_amount": total_amount,
+        "deposit_percentage": deposit_percentage,
+        "deposit_required": deposit_required,
+        "remaining_amount": remaining_amount,
     }
 
 
 @transaction.atomic
-def crear_reserva_pendiente(
-    usuario,
-    cancha,
-    fecha,
-    hora_inicio,
-    hora_fin
+def create_pending_reservation(
+    user,
+    court,
+    reservation_date,
+    start_time,
+    end_time
 ):
     """
-    Crea una reserva temporal en estado PENDING_PAYMENT.
+    Creates a temporary reservation in
+    PENDING_PAYMENT status.
 
-    Calcula:
-    - Valor total de la reserva.
-    - Abono requerido.
-    - Saldo pendiente.
-    - Fecha de expiración del hold.
+    Calculates:
+    - Total reservation amount.
+    - Required deposit.
+    - Remaining amount.
+    - Hold expiration time.
     """
 
-    # Expira las reservas pendientes de pago que ya no tienen bloqueo temporal
-    expirar_reservas_pendientes()
+    # Expire reservations whose hold already ended.
+    expire_pending_reservations()
 
-    # Validar que la hora de inicio sea anterior a la hora de finalización
-    if hora_inicio >= hora_fin:
+    if start_time >= end_time:
         raise ValidationError(
-            "La hora de inicio debe ser anterior a la hora de finalización."
+            "La hora de inicio debe ser anterior "
+            "a la hora de finalización."
         )
 
-    # Día de semana compatible con el dataset: 1=Lunes ... 7=Domingo
-    dia_semana = fecha.isoweekday()
+    # Dataset convention:
+    # 1 = Monday ... 7 = Sunday.
+    day_of_week = reservation_date.isoweekday()
 
-    horario = Horario.objects.filter(
-        cancha=cancha,
-        dia_semana=dia_semana,
-        activo=True,
-        hora_inicio__lte=hora_inicio,
-        hora_fin__gte=hora_fin
+    schedule = CourtSchedule.objects.filter(
+        court=court,
+        day_of_week=day_of_week,
+        is_active=True,
+        start_time__lte=start_time,
+        end_time__gte=end_time
     ).first()
 
-    if horario is None:
+    if schedule is None:
         raise ValidationError(
-            "El horario seleccionado está fuera del horario operativo de la cancha."
+            "El horario seleccionado está fuera "
+            "del horario operativo de la cancha."
         )
 
-    # Detectar cualquier superposición
-    conflicto = Reserva.objects.filter(
-        cancha=cancha,
-        fecha=fecha,
-        hora_inicio__lt=hora_fin,
-        hora_fin__gt=hora_inicio,
-        estado__in=ESTADOS_QUE_BLOQUEAN
+    # Reservation overlap rule:
+    #
+    # existing.start < new.end
+    # AND
+    # existing.end > new.start
+    conflict_exists = Reservation.objects.filter(
+        court=court,
+        reservation_date=reservation_date,
+        start_time__lt=end_time,
+        end_time__gt=start_time,
+        reservation_status__in=BLOCKING_RESERVATION_STATUSES
     ).exists()
 
-    if conflicto:
+    if conflict_exists:
         raise ValidationError(
-            "La cancha ya está reservada o temporalmente bloqueada en este horario."
+            "La cancha ya está reservada "
+            "o temporalmente bloqueada "
+            "en este horario."
         )
 
-    valores = calcular_valores_reserva(
-        cancha,
-        fecha,
-        hora_inicio,
-        hora_fin
+    values = calculate_reservation_values(
+        court,
+        reservation_date,
+        start_time,
+        end_time
     )
 
-    valor_total = valores["valor_total"]
-    abono_requerido = valores["abono_requerido"]
-    saldo_pendiente = valores["saldo_pendiente"]
-
-    reserva = Reserva(
-        usuario=usuario,
-        cancha=cancha,
-        fecha=fecha,
-        hora_inicio=hora_inicio,
-        hora_fin=hora_fin,
-        precio=valor_total,
-        abono_requerido=abono_requerido,
-        saldo_pendiente=saldo_pendiente,
-        estado="PENDING_PAYMENT",
-        hold_expira_en=timezone.now() + timedelta(
-            minutes=HOLD_MINUTES
+    reservation = Reservation(
+        court=court,
+        user=user,
+        reservation_date=reservation_date,
+        start_time=start_time,
+        end_time=end_time,
+        total_amount=values["total_amount"],
+        deposit_required=values["deposit_required"],
+        remaining_amount=values["remaining_amount"],
+        reservation_status="PENDING_PAYMENT",
+        hold_expires_at=(
+            timezone.now()
+            + timedelta(
+                minutes=HOLD_MINUTES
+            )
         ),
-        origen_datos="SYSTEM"
+        cancelled_at=None,
+        data_source="SYSTEM"
     )
 
-    reserva.full_clean()
-    reserva.save()
+    reservation.full_clean()
+    reservation.save()
 
-    return reserva
-
+    return reservation
 
 
 @transaction.atomic
-def procesar_pago_simulado(reserva, resultado):
+def process_simulated_payment(
+    reservation,
+    result
+):
     """
-    Registra un intento de abono simulado.
+    Registers a simulated deposit attempt.
 
-    resultado debe ser:
+    result must be:
     - APPROVED
     - REJECTED
     """
 
-    resultado = resultado.upper()
+    result = result.upper()
 
-    if resultado not in ["APPROVED", "REJECTED"]:
+    if result not in [
+        "APPROVED",
+        "REJECTED"
+    ]:
         raise ValidationError(
-            "El resultado del pago debe ser APPROVED o REJECTED."
+            "El resultado del pago debe ser "
+            "APPROVED o REJECTED."
         )
 
-    # Primero liberar reservas cuyo hold ya venció
-    expirar_reservas_pendientes()
+    # Release expired holds first.
+    expire_pending_reservations()
 
-    # Bloquear la reserva durante esta operación
-    reserva = (
-        Reserva.objects
+    reservation = (
+        Reservation.objects
         .select_for_update()
-        .get(pk=reserva.pk)
+        .get(
+            pk=reservation.pk
+        )
     )
 
-    if reserva.estado == "EXPIRED":
+    if (
+        reservation.reservation_status
+        == "EXPIRED"
+    ):
         raise ValidationError(
-            "La reserva expiró y ya no puede recibir pagos."
-        )
-
-    if reserva.estado != "PENDING_PAYMENT":
-        raise ValidationError(
-            "Solo las reservas pendientes de pago pueden recibir un abono."
+            "La reserva expiró y ya no puede "
+            "recibir pagos."
         )
 
     if (
-        reserva.hold_expira_en
-        and reserva.hold_expira_en <= timezone.now()
+        reservation.reservation_status
+        != "PENDING_PAYMENT"
     ):
-        reserva.estado = "EXPIRED"
-        reserva.save(update_fields=["estado"])
-
         raise ValidationError(
-            "El tiempo disponible para realizar el abono expiró."
+            "Solo las reservas pendientes de pago "
+            "pueden recibir un abono."
         )
 
-    referencia = f"SIM-{uuid4().hex.upper()}"
+    if (
+        reservation.hold_expires_at
+        and reservation.hold_expires_at
+        <= timezone.now()
+    ):
+        reservation.reservation_status = "EXPIRED"
 
-    pago = Pago.objects.create(
-        reserva=reserva,
-        monto=reserva.abono_requerido,
-        tipo="DEPOSIT",
-        estado=resultado,
-        proveedor="SIMULATED",
-        referencia=referencia,
-        fecha_aprobacion=(
+        reservation.save(
+            update_fields=[
+                "reservation_status"
+            ]
+        )
+
+        raise ValidationError(
+            "El tiempo disponible para realizar "
+            "el abono expiró."
+        )
+
+    transaction_reference = (
+        f"SIM-{uuid4().hex.upper()}"
+    )
+
+    payment = Payment.objects.create(
+        reservation=reservation,
+        amount=reservation.deposit_required,
+        payment_type="DEPOSIT",
+        payment_status=result,
+        provider="SIMULATED",
+        transaction_reference=transaction_reference,
+        approved_at=(
             timezone.now()
-            if resultado == "APPROVED"
+            if result == "APPROVED"
             else None
         )
     )
 
-    if resultado == "APPROVED":
-        reserva.estado = "CONFIRMED"
-        reserva.hold_expira_en = None
-        reserva.save(
+    if result == "APPROVED":
+        reservation.reservation_status = (
+            "CONFIRMED"
+        )
+
+        reservation.hold_expires_at = None
+
+        reservation.save(
             update_fields=[
-                "estado",
-                "hold_expira_en",
+                "reservation_status",
+                "hold_expires_at",
             ]
         )
 
-    return pago
+    return payment
 
 
 @transaction.atomic
-def cancelar_reserva(reserva):
+def cancel_reservation(
+    reservation
+):
     """
-    Cancela una reserva confirmada y libera su franja horaria.
+    Cancels a confirmed reservation and
+    releases its time slot.
     """
 
-    reserva = (
-        Reserva.objects
+    reservation = (
+        Reservation.objects
         .select_for_update()
-        .get(pk=reserva.pk)
+        .get(
+            pk=reservation.pk
+        )
     )
 
-    if reserva.estado != "CONFIRMED":
+    if (
+        reservation.reservation_status
+        != "CONFIRMED"
+    ):
         raise ValidationError(
-            "Solo las reservas confirmadas pueden cancelarse."
+            "Solo las reservas confirmadas "
+            "pueden cancelarse."
         )
 
-    reserva.estado = "CANCELLED"
-    reserva.fecha_cancelacion = timezone.now()
-    reserva.hold_expira_en = None
+    reservation.reservation_status = (
+        "CANCELLED"
+    )
 
-    reserva.save(
+    reservation.cancelled_at = (
+        timezone.now()
+    )
+
+    reservation.hold_expires_at = None
+
+    reservation.save(
         update_fields=[
-            "estado",
-            "fecha_cancelacion",
-            "hold_expira_en",
+            "reservation_status",
+            "cancelled_at",
+            "hold_expires_at",
         ]
     )
 
-    return reserva 
+    return reservation

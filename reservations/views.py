@@ -1,75 +1,94 @@
-from datetime import datetime
+from datetime import date, datetime
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
+from django.core.paginator import Paginator
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
-from courts.models import Cancha
+from courts.models import Court
+from users.decorators import admin_required
 
-from .models import Reserva
+from .models import Reservation
 from .services import (
-    calcular_valores_reserva,
-    crear_reserva_pendiente,
-    expirar_reservas_pendientes,
-    obtener_disponibilidad,
-    procesar_pago_simulado,
-    cancelar_reserva as cancelar_reserva_servicio,
+    calculate_reservation_values,
+    cancel_reservation,
+    create_pending_reservation,
+    expire_pending_reservations,
+    get_availability,
+    process_simulated_payment,
 )
 
 
 @login_required(login_url="users:login")
 def mis_reservas(request):
-    expirar_reservas_pendientes()
+    expire_pending_reservations()
 
-    reservas = (
-        Reserva.objects
-        .filter(usuario=request.user)
-        .select_related(
-            "cancha",
-            "cancha__venue"
+    reservations = (
+        Reservation.objects
+        .filter(
+            user=request.user
         )
-        .prefetch_related("pagos")
-        .order_by("-fecha", "-hora_inicio")
+        .select_related(
+            "court",
+            "court__venue"
+        )
+        .prefetch_related(
+            "payments"
+        )
+        .order_by(
+            "-reservation_date",
+            "-start_time"
+        )
     )
 
     return render(
         request,
         "reservations/mis_reservas.html",
         {
-            "reservas": reservas
+            "reservas": reservations
         }
     )
 
 
 @login_required(login_url="users:login")
-def resumen_reserva(request, cancha_id):
-    cancha = get_object_or_404(
-        Cancha.objects.select_related("venue"),
-        id=cancha_id,
-        activa=True
+def resumen_reserva(
+    request,
+    cancha_id
+):
+    court = get_object_or_404(
+        Court.objects.select_related(
+            "venue"
+        ),
+        court_id=cancha_id,
+        is_active=True
     )
 
-    fecha_texto = (
+    date_text = (
         request.POST.get("fecha")
         or request.GET.get("fecha")
     )
 
-    inicio_texto = (
+    start_text = (
         request.POST.get("inicio")
         or request.GET.get("inicio")
     )
 
-    fin_texto = (
+    end_text = (
         request.POST.get("fin")
         or request.GET.get("fin")
     )
 
-    # Si falta algún dato, regresar a disponibilidad
-    if not fecha_texto or not inicio_texto or not fin_texto:
+    # Si falta algún dato,
+    # regresar a disponibilidad.
+    if (
+        not date_text
+        or not start_text
+        or not end_text
+    ):
         messages.error(
             request,
             "Debes seleccionar una fecha y un horario."
@@ -77,92 +96,101 @@ def resumen_reserva(request, cancha_id):
 
         return redirect(
             "courts:disponibilidad_cancha",
-            cancha_id=cancha.id
+            cancha_id=court.court_id
         )
 
     try:
-        fecha = datetime.strptime(
-            fecha_texto,
+        reservation_date = datetime.strptime(
+            date_text,
             "%Y-%m-%d"
         ).date()
 
-        hora_inicio = datetime.strptime(
-            inicio_texto,
+        start_time = datetime.strptime(
+            start_text,
             "%H:%M"
         ).time()
 
-        hora_fin = datetime.strptime(
-            fin_texto,
+        end_time = datetime.strptime(
+            end_text,
             "%H:%M"
         ).time()
 
     except ValueError:
         messages.error(
             request,
-            "La fecha o el horario seleccionado no son válidos."
+            "La fecha o el horario seleccionado "
+            "no son válidos."
         )
 
         return redirect(
             "courts:disponibilidad_cancha",
-            cancha_id=cancha.id
+            cancha_id=court.court_id
         )
 
-    # No permitir fechas anteriores
-    if fecha < timezone.localdate():
+    # No permitir fechas anteriores.
+    if (
+        reservation_date
+        < timezone.localdate()
+    ):
         messages.error(
             request,
-            "No puedes reservar una fecha anterior a hoy."
+            "No puedes reservar una fecha "
+            "anterior a hoy."
         )
 
         return redirect(
             "courts:disponibilidad_cancha",
-            cancha_id=cancha.id
+            cancha_id=court.court_id
         )
 
-    # Revalidar disponibilidad
-    slots = obtener_disponibilidad(
-        cancha,
-        fecha
+    # Revalidar disponibilidad.
+    slots = get_availability(
+        court,
+        reservation_date
     )
 
-    horario_disponible = any(
-        slot["hora_inicio"] == hora_inicio
-        and slot["hora_fin"] == hora_fin
+    slot_available = any(
+        slot["start_time"] == start_time
+        and slot["end_time"] == end_time
         for slot in slots
     )
 
-    if not horario_disponible:
+    if not slot_available:
         messages.error(
             request,
-            "Ese horario ya no está disponible. Selecciona otro."
+            "Ese horario ya no está disponible. "
+            "Selecciona otro."
         )
 
         url = reverse(
             "courts:disponibilidad_cancha",
-            kwargs={"cancha_id": cancha.id}
+            kwargs={
+                "cancha_id": court.court_id
+            }
         )
 
         return redirect(
-            f"{url}?fecha={fecha.isoformat()}"
+            f"{url}?fecha="
+            f"{reservation_date.isoformat()}"
         )
 
-    # Calcular valores para mostrarlos en el resumen
-    valores = calcular_valores_reserva(
-        cancha,
-        fecha,
-        hora_inicio,
-        hora_fin
+    # Calcular valores para el resumen.
+    values = calculate_reservation_values(
+        court,
+        reservation_date,
+        start_time,
+        end_time
     )
 
-    # Si el usuario confirmó la reserva
+    # Crear reserva.
     if request.method == "POST":
         try:
-            reserva = crear_reserva_pendiente(
-                usuario=request.user,
-                cancha=cancha,
-                fecha=fecha,
-                hora_inicio=hora_inicio,
-                hora_fin=hora_fin
+            reservation = create_pending_reservation(
+                user=request.user,
+                court=court,
+                reservation_date=reservation_date,
+                start_time=start_time,
+                end_time=end_time
             )
 
         except ValidationError as error:
@@ -173,52 +201,62 @@ def resumen_reserva(request, cancha_id):
 
             url = reverse(
                 "courts:disponibilidad_cancha",
-                kwargs={"cancha_id": cancha.id}
+                kwargs={
+                    "cancha_id": court.court_id
+                }
             )
 
             return redirect(
-                f"{url}?fecha={fecha.isoformat()}"
+                f"{url}?fecha="
+                f"{reservation_date.isoformat()}"
             )
 
         messages.success(
             request,
-            "Reserva creada. Tienes 15 minutos para realizar el abono."
+            "Reserva creada. Tienes 15 minutos "
+            "para realizar el abono."
         )
 
         return redirect(
             "reservations:pagar_reserva",
-            reserva_id=reserva.id
+            reserva_id=reservation.reservation_id
         )
 
     return render(
         request,
         "reservations/resumen_reserva.html",
         {
-            "cancha": cancha,
-            "fecha": fecha,
-            "hora_inicio": hora_inicio,
-            "hora_fin": hora_fin,
-            "valores": valores,
+            "cancha": court,
+            "fecha": reservation_date,
+            "hora_inicio": start_time,
+            "hora_fin": end_time,
+            "valores": values,
         }
     )
 
 
 @login_required(login_url="users:login")
-def pagar_reserva(request, reserva_id):
-    expirar_reservas_pendientes()
+def pagar_reserva(
+    request,
+    reserva_id
+):
+    expire_pending_reservations()
 
-    reserva = get_object_or_404(
-        Reserva.objects.select_related(
-            "cancha",
-            "cancha__venue"
+    reservation = get_object_or_404(
+        Reservation.objects.select_related(
+            "court",
+            "court__venue"
         ),
-        id=reserva_id,
-        usuario=request.user
+        reservation_id=reserva_id,
+        user=request.user
     )
 
-    reserva.refresh_from_db()
+    reservation.refresh_from_db()
 
-    if reserva.estado == "EXPIRED":
+    if (
+        reservation.reservation_status
+        == "EXPIRED"
+    ):
         messages.error(
             request,
             "El tiempo para realizar el abono expiró."
@@ -228,7 +266,10 @@ def pagar_reserva(request, reserva_id):
             "reservations:mis_reservas"
         )
 
-    if reserva.estado == "CONFIRMED":
+    if (
+        reservation.reservation_status
+        == "CONFIRMED"
+    ):
         messages.info(
             request,
             "Esta reserva ya está confirmada."
@@ -238,10 +279,14 @@ def pagar_reserva(request, reserva_id):
             "reservations:mis_reservas"
         )
 
-    if reserva.estado != "PENDING_PAYMENT":
+    if (
+        reservation.reservation_status
+        != "PENDING_PAYMENT"
+    ):
         messages.error(
             request,
-            "Esta reserva no se encuentra pendiente de pago."
+            "Esta reserva no se encuentra "
+            "pendiente de pago."
         )
 
         return redirect(
@@ -249,12 +294,15 @@ def pagar_reserva(request, reserva_id):
         )
 
     if request.method == "POST":
-        resultado = request.POST.get("resultado")
+        result = request.POST.get(
+            "resultado",
+            ""
+        )
 
         try:
-            pago = procesar_pago_simulado(
-                reserva,
-                resultado
+            payment = process_simulated_payment(
+                reservation,
+                result
             )
 
         except ValidationError as error:
@@ -267,10 +315,14 @@ def pagar_reserva(request, reserva_id):
                 "reservations:mis_reservas"
             )
 
-        if pago.estado == "APPROVED":
+        if (
+            payment.payment_status
+            == "APPROVED"
+        ):
             messages.success(
                 request,
-                "Abono aprobado. Tu reserva fue confirmada."
+                "Abono aprobado. "
+                "Tu reserva fue confirmada."
             )
 
             return redirect(
@@ -279,44 +331,52 @@ def pagar_reserva(request, reserva_id):
 
         messages.error(
             request,
-            "El pago fue rechazado. Puedes intentar nuevamente mientras el tiempo de reserva siga vigente."
+            "El pago fue rechazado. "
+            "Puedes intentar nuevamente mientras "
+            "el tiempo de reserva siga vigente."
         )
 
         return redirect(
             "reservations:pagar_reserva",
-            reserva_id=reserva.id
+            reserva_id=reservation.reservation_id
         )
 
-    tiempo_restante = max(
+    remaining_time = max(
         0,
         int(
             (
-                reserva.hold_expira_en
+                reservation.hold_expires_at
                 - timezone.now()
             ).total_seconds()
         )
     )
+
     return render(
         request,
         "reservations/pagar_reserva.html",
         {
-            "reserva": reserva,
-            "tiempo_restante": tiempo_restante,
+            "reserva": reservation,
+            "tiempo_restante": remaining_time,
         }
     )
 
+
 @login_required(login_url="users:login")
 @require_POST
-def cancelar_reserva_view(request, reserva_id):
-
-    reserva = get_object_or_404(
-        Reserva,
-        id=reserva_id,
-        usuario=request.user
+def cancelar_reserva_view(
+    request,
+    reserva_id
+):
+    reservation = get_object_or_404(
+        Reservation,
+        reservation_id=reserva_id,
+        user=request.user
     )
 
     try:
-        cancelar_reserva_servicio(reserva)
+        cancel_reservation(
+            reservation
+        )
 
     except ValidationError as error:
         messages.error(
@@ -327,10 +387,186 @@ def cancelar_reserva_view(request, reserva_id):
     else:
         messages.success(
             request,
-            "La reserva fue cancelada correctamente. "
+            "La reserva fue cancelada "
+            "correctamente. "
             "El horario volvió a estar disponible."
         )
 
     return redirect(
         "reservations:mis_reservas"
+    )
+
+
+@login_required(login_url="users:login")
+@admin_required
+def admin_reservas(request):
+    reservations = (
+        Reservation.objects
+        .select_related(
+            "user",
+            "court",
+            "court__venue"
+        )
+        .order_by(
+            "-reservation_date",
+            "-start_time"
+        )
+    )
+
+    # ---------------------------------
+    # Parámetros de filtros
+    # ---------------------------------
+
+    start_date_filter = request.GET.get(
+        "fecha_desde",
+        ""
+    )
+
+    end_date_filter = request.GET.get(
+        "fecha_hasta",
+        ""
+    )
+
+    court_id = request.GET.get(
+        "cancha",
+        ""
+    )
+
+    status = request.GET.get(
+        "estado",
+        ""
+    )
+
+    # ---------------------------------
+    # Filtro fecha desde
+    # ---------------------------------
+
+    if start_date_filter:
+        try:
+            start_date = date.fromisoformat(
+                start_date_filter
+            )
+
+            reservations = reservations.filter(
+                reservation_date__gte=start_date
+            )
+
+        except ValueError:
+            messages.warning(
+                request,
+                "La fecha inicial no es válida."
+            )
+
+    # ---------------------------------
+    # Filtro fecha hasta
+    # ---------------------------------
+
+    if end_date_filter:
+        try:
+            end_date = date.fromisoformat(
+                end_date_filter
+            )
+
+            reservations = reservations.filter(
+                reservation_date__lte=end_date
+            )
+
+        except ValueError:
+            messages.warning(
+                request,
+                "La fecha final no es válida."
+            )
+
+    # ---------------------------------
+    # Filtro cancha
+    # ---------------------------------
+
+    if court_id:
+        reservations = reservations.filter(
+            court_id=court_id
+        )
+
+    # ---------------------------------
+    # Filtro estado
+    # ---------------------------------
+
+    valid_statuses = [
+        value
+        for value, label
+        in Reservation._meta
+        .get_field(
+            "reservation_status"
+        )
+        .choices
+    ]
+
+    if (
+        status
+        and status in valid_statuses
+    ):
+        reservations = reservations.filter(
+            reservation_status=status
+        )
+
+    # ---------------------------------
+    # Catálogos para filtros
+    # ---------------------------------
+
+    courts = (
+        Court.objects
+        .select_related(
+            "venue"
+        )
+        .filter(
+            is_active=True
+        )
+        .order_by(
+            "venue__venue_name",
+            "court_name"
+        )
+    )
+
+    statuses = (
+        Reservation._meta
+        .get_field(
+            "reservation_status"
+        )
+        .choices
+    )
+
+    # ---------------------------------
+    # Paginación
+    # ---------------------------------
+
+    paginator = Paginator(
+        reservations,
+        25
+    )
+
+    page = paginator.get_page(
+        request.GET.get("page")
+    )
+
+    parameters = request.GET.copy()
+
+    if "page" in parameters:
+        parameters.pop("page")
+
+    context = {
+        "pagina": page,
+        "canchas": courts,
+        "estados": statuses,
+
+        "fecha_desde": start_date_filter,
+        "fecha_hasta": end_date_filter,
+        "cancha_seleccionada": court_id,
+        "estado_seleccionado": status,
+
+        "querystring": parameters.urlencode(),
+    }
+
+    return render(
+        request,
+        "reservations/admin_reservas.html",
+        context
     )

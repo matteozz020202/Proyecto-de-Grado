@@ -1,15 +1,16 @@
 from django.contrib import admin
-from .models import Venue, Cancha, Horario
+
+from .models import Venue, Court, CourtSchedule
 
 
-class CanchaInline(admin.TabularInline):
-    model = Cancha
+class CourtInline(admin.TabularInline):
+    model = Court
     extra = 0
 
     fields = (
-        "nombre",
-        "precio_hora",
-        "activa",
+        "court_name",
+        "price_per_hour",
+        "is_active",
     )
 
     show_change_link = True
@@ -18,60 +19,85 @@ class CanchaInline(admin.TabularInline):
 @admin.register(Venue)
 class VenueAdmin(admin.ModelAdmin):
     list_display = (
-        "nombre",
-        "direccion",
-        "ciudad",
-        "activo",
+        "venue_id",
+        "venue_name",
+        "city",
+        "address",
+        "deposit_percentage",
+        "is_active",
     )
 
     list_filter = (
-        "activo",
-        "ciudad",
+        "is_active",
+        "city",
     )
 
     search_fields = (
-        "nombre",
-        "direccion",
-        "ciudad",
+        "venue_name",
+        "address",
+        "city",
+    )
+
+    ordering = (
+        "venue_name",
     )
 
     inlines = [
-        CanchaInline
+        CourtInline
     ]
 
 
-@admin.register(Cancha)
-class CanchaAdmin(admin.ModelAdmin):
+@admin.register(Court)
+class CourtAdmin(admin.ModelAdmin):
     list_display = (
-        "nombre",
+        "court_id",
+        "court_name",
         "venue",
-        "precio_hora",
-        "activa",
+        "price_per_hour",
+        "is_active",
     )
 
     list_filter = (
         "venue",
-        "activa",
+        "is_active",
     )
 
     search_fields = (
-        "nombre",
-        "venue__nombre",
+        "court_name",
+        "venue__venue_name",
+    )
+
+    ordering = (
+        "venue__venue_name",
+        "court_name",
     )
 
 
-@admin.register(Horario)
-class HorarioAdmin(admin.ModelAdmin):
+@admin.register(CourtSchedule)
+class CourtScheduleAdmin(admin.ModelAdmin):
     list_display = (
-        "cancha",
-        "dia_semana",
-        "hora_inicio",
-        "hora_fin",
-        "activo",
+        "schedule_id",
+        "court",
+        "day_of_week",
+        "start_time",
+        "end_time",
+        "slot_duration_minutes",
+        "is_active",
     )
 
     list_filter = (
-        "dia_semana",
-        "activo",
-        "cancha",
+        "day_of_week",
+        "is_active",
+        "court",
+    )
+
+    search_fields = (
+        "court__court_name",
+        "court__venue__venue_name",
+    )
+
+    ordering = (
+        "court",
+        "day_of_week",
+        "start_time",
     )

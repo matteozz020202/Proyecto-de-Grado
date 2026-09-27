@@ -26,5 +26,10 @@ urlpatterns = [
     "cancelar/<int:reserva_id>/",
     views.cancelar_reserva_view,
     name="cancelar_reserva"
-),
+    ),
+    path(
+        "admin/reservas/",
+        views.admin_reservas,
+        name="admin_reservas"
+    ),
 ]
