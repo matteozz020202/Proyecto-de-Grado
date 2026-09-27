@@ -27,7 +27,7 @@ def login_view(request):
     return render(request, "users/login.html")
 
 
-@login_required
+@login_required(login_url="users:login")
 def home_view(request):
     rol = "Sin rol"
 
@@ -47,7 +47,7 @@ def home_view(request):
     )
 
 
-@login_required
+@login_required(login_url="users:login")
 def logout_view(request):
     if request.method == "POST":
         logout(request)

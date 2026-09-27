@@ -17,6 +17,7 @@ staticfiles/
 
 # Backups locales
 backup_courts.json
+backup_reservas_sprint1.json
 
 # IDE
 .vscode/
@@ -25,3 +26,5 @@ backup_courts.json
 # Operating system
 .DS_Store
 Thumbs.db
+
+media/
