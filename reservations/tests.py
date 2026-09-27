@@ -319,3 +319,79 @@ class ReservaFlowTests(TestCase):
                 reserva,
                 "APPROVED"
             )
+
+    def test_conflicto_cuando_nueva_empieza_antes(self):
+        self.crear_reserva()
+
+        with self.assertRaises(ValidationError):
+            crear_reserva_pendiente(
+                usuario=self.usuario,
+                cancha=self.cancha,
+                fecha=self.fecha,
+                hora_inicio=time(9, 30),
+                hora_fin=time(10, 30)
+            )
+
+
+    def test_conflicto_cuando_nueva_envuelve_existente(self):
+        self.crear_reserva()
+
+        with self.assertRaises(ValidationError):
+            crear_reserva_pendiente(
+                usuario=self.usuario,
+                cancha=self.cancha,
+                fecha=self.fecha,
+                hora_inicio=time(9, 30),
+                hora_fin=time(11, 30)
+            )
+
+
+    def test_permite_horario_justo_antes(self):
+        self.crear_reserva()
+
+        reserva_anterior = crear_reserva_pendiente(
+            usuario=self.usuario,
+            cancha=self.cancha,
+            fecha=self.fecha,
+            hora_inicio=time(9, 0),
+            hora_fin=time(10, 0)
+        )
+
+        self.assertEqual(
+            reserva_anterior.estado,
+            "PENDING_PAYMENT"
+        )
+
+
+    def test_misma_hora_en_otra_cancha_es_permitida(self):
+        otra_cancha = Cancha.objects.create(
+            venue=self.venue,
+            nombre="Cancha Test 2",
+            descripcion="Segunda cancha para pruebas",
+            precio_hora=Decimal("120000.00"),
+            activa=True
+        )
+
+        Horario.objects.create(
+            cancha=otra_cancha,
+            dia_semana=self.fecha.isoweekday(),
+            hora_inicio=time(8, 0),
+            hora_fin=time(22, 0),
+            duracion_slot_minutos=60,
+            activo=True
+        )
+
+        self.crear_reserva()
+
+        segunda_reserva = crear_reserva_pendiente(
+            usuario=self.usuario,
+            cancha=otra_cancha,
+            fecha=self.fecha,
+            hora_inicio=time(10, 0),
+            hora_fin=time(11, 0)
+        )
+
+        self.assertEqual(
+            segunda_reserva.estado,
+            "PENDING_PAYMENT"
+        )
