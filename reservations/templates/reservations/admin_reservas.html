@@ -36,12 +36,20 @@
             Cancha Lista
         </a>
 
-        <a
-            href="{% url 'users:home' %}"
-            class="btn btn-outline-light btn-sm"
-        >
-            Inicio
-        </a>
+        <div class="d-flex gap-2">
+            <a
+                href="{% url 'reservations:admin_dashboard' %}"
+                class="btn btn-outline-light btn-sm"
+            >
+                Dashboard
+            </a>
+            <a
+                href="{% url 'users:home' %}"
+                class="btn btn-outline-light btn-sm"
+            >
+                Inicio
+            </a>
+        </div>
 
     </div>
 

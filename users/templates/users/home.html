@@ -134,7 +134,7 @@
         </div>
 
 
-        {% if rol == "Administrador" %}
+        {% if rol == "Administrador" or rol == "Superusuario" %}
 
             <div class="row g-4 mt-1">
 
@@ -148,10 +148,24 @@
                                 Panel administrativo
                             </h4>
 
-                            <p class="text-muted mb-0">
-                                Gestión de canchas, reservas, pagos,
-                                disponibilidad e indicadores.
+                            <p class="text-muted">
+                                Indicadores del día, agenda de reservas
+                                e ingresos registrados.
                             </p>
+
+                            <a
+                                href="{% url 'reservations:admin_dashboard' %}"
+                                class="btn btn-dark"
+                            >
+                                Abrir dashboard
+                            </a>
+
+                            <a
+                                href="{% url 'reservations:admin_reservas' %}"
+                                class="btn btn-outline-dark"
+                            >
+                                Ver reservas
+                            </a>
 
                         </div>
 
