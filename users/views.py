@@ -31,12 +31,14 @@ def login_view(request):
 def home_view(request):
     rol = "Sin rol"
 
-    if request.user.groups.filter(name="Administrador").exists():
+    if (
+        request.user.is_superuser
+        or request.user.is_staff
+        or request.user.groups.filter(name="Administrador").exists()
+    ):
         rol = "Administrador"
     elif request.user.groups.filter(name="Usuario").exists():
         rol = "Usuario"
-    elif request.user.is_superuser:
-        rol = "Superusuario"
 
     return render(
         request,

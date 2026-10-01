@@ -4,15 +4,16 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
 from django.core.paginator import Paginator
+from django.db.models import Count, Q, Sum
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
-from courts.models import Court
+from courts.models import Court, Venue
 from users.decorators import admin_required
 
-from .models import Reservation
+from .models import Payment, Reservation
 from .services import (
     calculate_reservation_values,
     cancel_reservation,
@@ -568,5 +569,123 @@ def admin_reservas(request):
     return render(
         request,
         "reservations/admin_reservas.html",
+        context
+    )
+
+
+@login_required(login_url="users:login")
+@admin_required
+def admin_dashboard(request):
+    expire_pending_reservations()
+
+    now = timezone.localtime()
+    today = now.date()
+
+    data_source = request.GET.get("origen", "SYSTEM")
+    if data_source not in dict(Reservation.DATA_SOURCES) and data_source != "ALL":
+        data_source = "SYSTEM"
+    reservations = Reservation.objects.all()
+    if data_source != "ALL":
+        reservations = reservations.filter(data_source=data_source)
+
+    status_counts = {
+        row["reservation_status"]: row["total"]
+        for row in reservations.values(
+            "reservation_status"
+        ).annotate(
+            total=Count("reservation_id")
+        )
+    }
+
+    approved_payments = Payment.objects.filter(
+        payment_status="APPROVED",
+        reservation__in=reservations,
+    )
+
+    upcoming = (
+        reservations.filter(
+            reservation_status__in=[
+                "PENDING_PAYMENT",
+                "CONFIRMED",
+            ],
+        )
+        .filter(
+            Q(reservation_date__gt=today)
+            | Q(reservation_date=today, start_time__gte=now.time())
+        )
+        .select_related(
+            "user",
+            "court",
+            "court__venue",
+        )
+        .order_by(
+            "reservation_date",
+            "start_time",
+        )[:8]
+    )
+
+    today_reservations = (
+        reservations.filter(
+            reservation_date=today
+        )
+        .exclude(
+            reservation_status__in=[
+                "CANCELLED",
+                "EXPIRED",
+            ]
+        )
+        .select_related(
+            "user",
+            "court",
+            "court__venue",
+        )
+        .order_by("start_time")[:8]
+    )
+
+    context = {
+        "hoy": today,
+        "origen": data_source,
+        "origenes": Reservation.DATA_SOURCES,
+        "total_establecimientos": Venue.objects.filter(
+            is_active=True
+        ).count(),
+        "total_canchas": Court.objects.filter(
+            is_active=True
+        ).count(),
+        "reservas_hoy": reservations.filter(
+            reservation_date=today
+        ).exclude(
+            reservation_status__in=[
+                "CANCELLED",
+                "EXPIRED",
+            ]
+        ).count(),
+        "pendientes_pago": status_counts.get(
+            "PENDING_PAYMENT",
+            0
+        ),
+        "confirmadas": status_counts.get(
+            "CONFIRMED",
+            0
+        ),
+        "completadas": status_counts.get(
+            "COMPLETED",
+            0
+        ),
+        "canceladas": status_counts.get(
+            "CANCELLED",
+            0
+        ),
+        "ingresos_aprobados": approved_payments.aggregate(
+            total=Sum("amount")
+        )["total"] or 0,
+        "pagos_aprobados": approved_payments.count(),
+        "agenda_hoy": today_reservations,
+        "proximas_reservas": upcoming,
+    }
+
+    return render(
+        request,
+        "reservations/admin_dashboard.html",
         context
     )
