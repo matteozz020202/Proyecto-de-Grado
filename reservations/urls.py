@@ -28,6 +28,11 @@ urlpatterns = [
     name="cancelar_reserva"
     ),
     path(
+    "admin/reservas/nueva/",
+    views.admin_crear_reserva,
+    name="admin_crear_reserva"
+    ),
+    path(
         "admin/reservas/",
         views.admin_reservas,
         name="admin_reservas"

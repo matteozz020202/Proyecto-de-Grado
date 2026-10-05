@@ -73,11 +73,10 @@
         <div class="row g-4">
 
             <!-- Reservar cancha -->
-            <div class="col-12 col-md-6">
+            <div class="col-12 col-md-6 col-lg-4">
 
-                <div class="card shadow-sm border-0 h-100">
-
-                    <div class="card-body p-4">
+                <div class="card h-100 shadow-sm border-0">
+                    <div class="card-body d-flex flex-column">
 
                         <h4 class="card-title">
                             Reservar cancha
@@ -88,26 +87,26 @@
                             disponibles para realizar una reserva.
                         </p>
 
-                        <a
-                            href="{% url 'courts:establecimientos' %}"
-                            class="btn btn-primary"
-                        >
-                            Buscar disponibilidad
-                        </a>
+                        <div class="mt-auto">
+                            <a
+                                href="{% url 'courts:establecimientos' %}"
+                                class="btn btn-primary"
+                            >
+                                Buscar disponibilidad
+                            </a>
+                        </div>
 
                     </div>
-
                 </div>
 
             </div>
 
 
             <!-- Mis reservas -->
-            <div class="col-12 col-md-6">
+            <div class="col-12 col-md-6 col-lg-4">
 
-                <div class="card shadow-sm border-0 h-100">
-
-                    <div class="card-body p-4">
+                <div class="card h-100 shadow-sm border-0">
+                    <div class="card-body d-flex flex-column">
 
                         <h4 class="card-title">
                             Mis reservas
@@ -118,50 +117,56 @@
                             completadas, canceladas y expiradas.
                         </p>
 
-                        <a
-                            href="{% url 'reservations:mis_reservas' %}"
-                            class="btn btn-primary"
-                        >
-                            Ver mis reservas
-                        </a>
-
-                    </div>
-
-                </div>
-
-            </div>
-
-        </div>
-
-
-        {% if rol == "Administrador" %}
-
-            <div class="row g-4 mt-1">
-
-                <div class="col-12">
-
-                    <div class="card shadow-sm border-0">
-
-                        <div class="card-body p-4">
-
-                            <h4 class="card-title">
-                                Panel administrativo
-                            </h4>
-
-                            <p class="text-muted mb-0">
-                                Gestión de canchas, reservas, pagos,
-                                disponibilidad e indicadores.
-                            </p>
-
+                        <div class="mt-auto">
+                            <a
+                                href="{% url 'reservations:mis_reservas' %}"
+                                class="btn btn-primary"
+                            >
+                                Ver mis reservas
+                            </a>
                         </div>
 
                     </div>
-
                 </div>
 
             </div>
 
-        {% endif %}
+
+            {% if user.is_staff or user.is_superuser %}
+
+                <!-- Administración -->
+                <div class="col-12 col-md-6 col-lg-4">
+
+                    <div class="card h-100 shadow-sm border-0">
+                        <div class="card-body d-flex flex-column">
+
+                            <h4 class="card-title">
+                                Administración
+                            </h4>
+
+                            <p class="text-muted">
+                                Gestiona y consulta las reservas registradas,
+                                aplica filtros y accede a las herramientas
+                                administrativas de Cancha Lista.
+                            </p>
+
+                            <div class="mt-auto">
+                                <a
+                                    href="{% url 'reservations:admin_reservas' %}"
+                                    class="btn btn-dark"
+                                >
+                                    Panel administrativo
+                                </a>
+                            </div>
+
+                        </div>
+                    </div>
+
+                </div>
+
+            {% endif %}
+
+        </div>
 
     </main>
 
