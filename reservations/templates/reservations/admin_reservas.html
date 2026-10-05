@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+
 <html lang="es">
 
 <head>
@@ -19,11 +20,208 @@
         rel="stylesheet"
     >
 
+
+    <style>
+
+        /* ============================= */
+        /* Página */
+        /* ============================= */
+
+        body {
+            min-height: 100vh;
+        }
+
+
+        /* ============================= */
+        /* Secciones administrativas */
+        /* ============================= */
+
+        .admin-section {
+            margin-bottom: 32px;
+        }
+
+        .admin-section-header {
+            margin-bottom: 16px;
+        }
+
+        .admin-section-title {
+            font-size: 1.35rem;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .admin-section-description {
+            color: #6c757d;
+            margin-bottom: 0;
+            font-size: 0.95rem;
+        }
+
+
+        /* ============================= */
+        /* Filtros */
+        /* ============================= */
+
+        .filters-card {
+            border: 0;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+        }
+
+        .filters-card .card-body {
+            padding: 22px;
+        }
+
+
+        /* ============================= */
+        /* Indicadores */
+        /* ============================= */
+
+        .kpi-card {
+            border: 0;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+            height: 100%;
+            background: #ffffff;
+        }
+
+        .kpi-card .card-body {
+            padding: 22px;
+        }
+
+        .kpi-label {
+            color: #6c757d;
+            margin-bottom: 8px;
+            font-size: 0.9rem;
+        }
+
+        .kpi-value {
+            font-size: 1.8rem;
+            font-weight: 700;
+            margin-bottom: 4px;
+            line-height: 1.2;
+            word-break: break-word;
+        }
+
+        .kpi-help {
+            color: #6c757d;
+            font-size: 0.82rem;
+            margin-bottom: 0;
+        }
+
+
+        /* ============================= */
+        /* Ocupación */
+        /* ============================= */
+
+        .occupancy-container {
+            border: 0;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+            overflow: hidden;
+        }
+
+        .occupancy-container .card-header {
+            background: #ffffff;
+            padding: 20px 22px;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .occupancy-container .card-body {
+            padding: 22px;
+        }
+
+        .occupancy-card {
+            border: 0;
+            border-radius: 10px;
+            background: #f8f9fa;
+            height: 100%;
+        }
+
+        .occupancy-card .card-body {
+            padding: 20px;
+        }
+
+        .occupancy-progress {
+            width: 0;
+            transition: width 0.4s ease;
+        }
+
+
+        /* ============================= */
+        /* Resultados */
+        /* ============================= */
+
+        .results-container {
+            border: 0;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+            overflow: hidden;
+        }
+
+        .results-header {
+            background: #ffffff;
+            padding: 18px 20px;
+            border-bottom: 1px solid #dee2e6;
+        }
+
+        .results-title {
+            font-size: 1.05rem;
+            font-weight: 600;
+            margin-bottom: 0;
+        }
+
+        .results-container .table {
+            margin-bottom: 0;
+        }
+
+        .results-container .table th {
+            background: #f8f9fa;
+            white-space: nowrap;
+        }
+
+        .results-container .table td {
+            vertical-align: middle;
+        }
+
+
+        /* ============================= */
+        /* Responsive */
+        /* ============================= */
+
+        @media (max-width: 767.98px) {
+
+            .admin-section {
+                margin-bottom: 24px;
+            }
+
+            .kpi-card .card-body {
+                padding: 18px;
+            }
+
+            .kpi-value {
+                font-size: 1.55rem;
+            }
+
+            .occupancy-container .card-body {
+                padding: 18px;
+            }
+
+            .results-header {
+                padding: 16px;
+            }
+        }
+
+    </style>
+
 </head>
 
 
 <body class="bg-light">
 
+
+<!-- ===================================== -->
+<!-- NAVBAR -->
+<!-- ===================================== -->
 
 <nav class="navbar navbar-dark bg-dark">
 
@@ -35,6 +233,7 @@
         >
             Cancha Lista
         </a>
+
 
         <a
             href="{% url 'users:home' %}"
@@ -48,8 +247,16 @@
 </nav>
 
 
+<!-- ===================================== -->
+<!-- CONTENIDO -->
+<!-- ===================================== -->
+
 <main class="container py-4">
 
+
+    <!-- ================================= -->
+    <!-- MENSAJES -->
+    <!-- ================================= -->
 
     {% if messages %}
 
@@ -71,322 +278,764 @@
     {% endif %}
 
 
-    <div class="mb-4">
+    <!-- ================================= -->
+    <!-- ENCABEZADO -->
+    <!-- ================================= -->
 
-        <h2 class="mb-1">
-            Reservas
-        </h2>
+    <div
+        class="d-flex
+            flex-column
+            flex-md-row
+            justify-content-between
+            align-items-md-center
+            gap-3
+            mb-4"
+    >
 
-        <p class="text-muted mb-0">
-            Consulta administrativa de reservas
-            registradas en Cancha Lista.
-        </p>
+        <div>
+
+            <h2 class="mb-1">
+                Reservas
+            </h2>
+
+            <p class="text-muted mb-0">
+                Consulta administrativa de reservas
+                registradas en Cancha Lista.
+            </p>
+
+        </div>
+
+
+        <div>
+
+            <a
+                href="{% url 'reservations:admin_crear_reserva' %}"
+                class="btn btn-primary"
+            >
+                + Nueva reserva
+            </a>
+
+        </div>
 
     </div>
 
 
+    <!-- ===================================== -->
     <!-- FILTROS -->
+    <!-- ===================================== -->
 
-    <div class="card shadow-sm mb-4">
+    <section class="admin-section">
 
-        <div class="card-body">
+        <div class="card filters-card">
 
-            <form
-                method="GET"
-                class="row g-3"
-            >
+            <div class="card-body">
 
-                <div class="col-md-3">
+                <form
+                    method="GET"
+                    class="row g-3"
+                >
 
-                    <label class="form-label">
-                        Fecha desde
-                    </label>
+                    <!-- Fecha desde -->
+                    <div class="col-12 col-md-6 col-xl-3">
 
-                    <input
-                        type="date"
-                        name="fecha_desde"
-                        value="{{ fecha_desde }}"
-                        class="form-control"
-                    >
+                        <label class="form-label">
+                            Fecha desde
+                        </label>
 
-                </div>
+                        <input
+                            type="date"
+                            name="fecha_desde"
+                            value="{{ fecha_desde }}"
+                            class="form-control"
+                        >
 
-
-                <div class="col-md-3">
-
-                    <label class="form-label">
-                        Fecha hasta
-                    </label>
-
-                    <input
-                        type="date"
-                        name="fecha_hasta"
-                        value="{{ fecha_hasta }}"
-                        class="form-control"
-                    >
-
-                </div>
+                    </div>
 
 
-                <div class="col-md-3">
+                    <!-- Fecha hasta -->
+                    <div class="col-12 col-md-6 col-xl-3">
 
-                    <label class="form-label">
-                        Cancha
-                    </label>
+                        <label class="form-label">
+                            Fecha hasta
+                        </label>
 
-                    <select
-                        name="cancha"
-                        class="form-select"
-                    >
+                        <input
+                            type="date"
+                            name="fecha_hasta"
+                            value="{{ fecha_hasta }}"
+                            class="form-control"
+                        >
 
-                        <option value="">
-                            Todas
-                        </option>
+                    </div>
 
-                        {% for cancha in canchas %}
 
-                            <option
-                                value="{{ cancha.court_id }}"
-                                {% if cancha_seleccionada == cancha.court_id|stringformat:"s" %}
-                                    selected
-                                {% endif %}
-                            >
-                                {{ cancha.venue.venue_name }}
-                                -
-                                {{ cancha.court_name }}
+                    <!-- Cancha -->
+                    <div class="col-12 col-md-6 col-xl-3">
+
+                        <label class="form-label">
+                            Cancha
+                        </label>
+
+                        <select
+                            name="cancha"
+                            class="form-select"
+                        >
+
+                            <option value="">
+                                Todas
                             </option>
 
-                        {% endfor %}
+                            {% for cancha in canchas %}
 
-                    </select>
+                                <option
+                                    value="{{ cancha.court_id }}"
+                                    {% if cancha_seleccionada == cancha.court_id|stringformat:"s" %}
+                                        selected
+                                    {% endif %}
+                                >
 
-                </div>
+                                    {{ cancha.venue.venue_name }}
+                                    -
+                                    {{ cancha.court_name }}
+
+                                </option>
+
+                            {% endfor %}
+
+                        </select>
+
+                    </div>
 
 
-                <div class="col-md-3">
+                    <!-- Estado -->
+                    <div class="col-12 col-md-6 col-xl-3">
 
-                    <label class="form-label">
-                        Estado
-                    </label>
+                        <label class="form-label">
+                            Estado
+                        </label>
 
-                    <select
-                        name="estado"
-                        class="form-select"
-                    >
+                        <select
+                            name="estado"
+                            class="form-select"
+                        >
 
-                        <option value="">
-                            Todos
-                        </option>
-
-                        {% for valor, etiqueta in estados %}
-
-                            <option
-                                value="{{ valor }}"
-                                {% if estado_seleccionado == valor %}
-                                    selected
-                                {% endif %}
-                            >
-                                {{ etiqueta }}
+                            <option value="">
+                                Todos
                             </option>
 
-                        {% endfor %}
+                            {% for valor, etiqueta in estados %}
 
-                    </select>
+                                <option
+                                    value="{{ valor }}"
+                                    {% if estado_seleccionado == valor %}
+                                        selected
+                                    {% endif %}
+                                >
+                                    {{ etiqueta }}
+                                </option>
 
-                </div>
+                            {% endfor %}
+
+                        </select>
+
+                    </div>
 
 
-                <div class="col-12">
+                    <!-- Botones -->
+                    <div class="col-12">
 
-                    <button
-                        type="submit"
-                        class="btn btn-primary"
-                    >
-                        Aplicar filtros
-                    </button>
+                        <button
+                            type="submit"
+                            class="btn btn-primary"
+                        >
+                            Aplicar filtros
+                        </button>
 
-                    <a
-                        href="{% url 'reservations:admin_reservas' %}"
-                        class="btn btn-outline-secondary"
-                    >
-                        Limpiar
-                    </a>
+                        <a
+                            href="{% url 'reservations:admin_reservas' %}"
+                            class="btn btn-outline-secondary"
+                        >
+                            Limpiar
+                        </a>
 
-                </div>
+                    </div>
 
-            </form>
+                </form>
+
+            </div>
 
         </div>
+
+    </section>
+
+
+    <!-- ===================================== -->
+    <!-- INDICADORES -->
+    <!-- ===================================== -->
+
+    <section class="admin-section">
+
+        <div class="admin-section-header">
+
+            <h3 class="admin-section-title">
+                Indicadores
+            </h3>
+
+            <p class="admin-section-description">
+
+                Periodo analizado:
+
+                <strong>
+                    {{ kpi_start_date|date:"d/m/Y" }}
+                </strong>
+
+                -
+
+                <strong>
+                    {{ kpi_end_date|date:"d/m/Y" }}
+                </strong>
+
+            </p>
+
+        </div>
+
+
+        <div class="row g-3">
+
+
+            <!-- Reservas efectivas -->
+            <div class="col-12 col-md-6 col-xl">
+
+                <div class="card kpi-card">
+
+                    <div class="card-body">
+
+                        <p class="kpi-label">
+                            Reservas efectivas
+                        </p>
+
+                        <div class="kpi-value">
+                            {{ summary_kpis.total_reservations }}
+                        </div>
+
+                        <p class="kpi-help">
+                            Confirmadas + completadas
+                        </p>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <!-- Horas reservadas -->
+            <div class="col-12 col-md-6 col-xl">
+
+                <div class="card kpi-card">
+
+                    <div class="card-body">
+
+                        <p class="kpi-label">
+                            Horas reservadas
+                        </p>
+
+                        <div class="kpi-value">
+                            {{ summary_kpis.reserved_hours }}
+                        </div>
+
+                        <p class="kpi-help">
+                            Horas efectivas
+                        </p>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <!-- Valor total -->
+            <div class="col-12 col-md-6 col-xl">
+
+                <div class="card kpi-card">
+
+                    <div class="card-body">
+
+                        <p class="kpi-label">
+                            Valor total
+                        </p>
+
+                        <div class="kpi-value">
+                            ${{ summary_kpis.total_value|floatformat:0 }}
+                        </div>
+
+                        <p class="kpi-help">
+                            Reservas efectivas
+                        </p>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <!-- Canceladas -->
+            <div class="col-12 col-md-6 col-xl">
+
+                <div class="card kpi-card">
+
+                    <div class="card-body">
+
+                        <p class="kpi-label">
+                            Canceladas
+                        </p>
+
+                        <div class="kpi-value">
+                            {{ cancellation_kpis.cancelled_reservations }}
+                        </div>
+
+                        <p class="kpi-help">
+                            Reservas canceladas
+                        </p>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <!-- Tasa de cancelación -->
+            <div class="col-12 col-md-6 col-xl">
+
+                <div class="card kpi-card">
+
+                    <div class="card-body">
+
+                        <p class="kpi-label">
+                            Tasa de cancelación
+                        </p>
+
+                        <div class="kpi-value">
+                            {{ cancellation_kpis.cancellation_rate }}%
+                        </div>
+
+                        <p class="kpi-help">
+                            Sobre reservas totales
+                        </p>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+
+        </div>
+
+    </section>
+
+
+    <!-- ===================================== -->
+    <!-- OCUPACIÓN POR CANCHA -->
+    <!-- ===================================== -->
+
+    <section class="admin-section">
+
+        <div class="card occupancy-container">
+
+            <div class="card-header">
+
+                <h3 class="admin-section-title">
+                    Ocupación por cancha
+                </h3>
+
+                <p class="admin-section-description">
+                    Porcentaje de horas reservadas frente
+                    a las horas operativas disponibles.
+                </p>
+
+            </div>
+
+
+            <div class="card-body">
+
+                {% if occupancy_by_court %}
+
+                    <div class="row g-3">
+
+                        {% for occupancy in occupancy_by_court %}
+
+                            <div class="col-12 col-md-6 col-xl-4">
+
+                                <div class="card occupancy-card">
+
+                                    <div class="card-body">
+
+                                        <div
+                                            class="d-flex
+                                                   justify-content-between
+                                                   align-items-start
+                                                   gap-3
+                                                   mb-3"
+                                        >
+
+                                            <div>
+
+                                                <h5 class="mb-1">
+                                                    {{ occupancy.court_name }}
+                                                </h5>
+
+                                                <small class="text-muted">
+                                                    {{ occupancy.venue_name }}
+                                                </small>
+
+                                            </div>
+
+
+                                            <span class="badge bg-primary fs-6">
+
+                                                {{ occupancy.occupancy_percentage }}%
+
+                                            </span>
+
+                                        </div>
+
+
+                                        <!-- Barra de ocupación -->
+                                        <div
+                                            class="progress mb-3"
+                                            style="height: 10px;"
+                                        >
+
+                                            <div
+                                                class="progress-bar occupancy-progress"
+                                                role="progressbar"
+                                                data-occupancy="{{ occupancy.occupancy_percentage }}"
+                                                aria-valuenow="{{ occupancy.occupancy_percentage }}"
+                                                aria-valuemin="0"
+                                                aria-valuemax="100"
+                                            >
+                                            </div>
+
+                                        </div>
+
+
+                                        <!-- Horas -->
+                                        <div class="row text-center">
+
+                                            <div class="col-6">
+
+                                                <small class="text-muted d-block mb-1">
+                                                    Horas disponibles
+                                                </small>
+
+                                                <strong>
+                                                    {{ occupancy.available_hours }} h
+                                                </strong>
+
+                                            </div>
+
+
+                                            <div class="col-6">
+
+                                                <small class="text-muted d-block mb-1">
+                                                    Horas reservadas
+                                                </small>
+
+                                                <strong>
+                                                    {{ occupancy.reserved_hours }} h
+                                                </strong>
+
+                                            </div>
+
+                                        </div>
+
+                                    </div>
+
+                                </div>
+
+                            </div>
+
+                        {% endfor %}
+
+                    </div>
+
+                {% else %}
+
+                    <div class="alert alert-info mb-0">
+
+                        No existen datos de ocupación
+                        para el rango seleccionado.
+
+                    </div>
+
+                {% endif %}
+
+            </div>
+
+        </div>
+
+    </section>
+
+
+    <!-- ===================================== -->
+    <!-- INFORMACIÓN SOBRE FILTROS -->
+    <!-- ===================================== -->
+
+    <div class="alert alert-light border mb-4">
+
+        <small class="text-muted">
+
+            Los indicadores utilizan los filtros de
+            <strong>fecha</strong>
+            y
+            <strong>cancha</strong>.
+
+            El filtro de
+            <strong>estado</strong>
+            se aplica únicamente al listado de reservas.
+
+        </small>
 
     </div>
 
 
+    <!-- ===================================== -->
     <!-- RESULTADOS -->
+    <!-- ===================================== -->
 
-    <div class="card shadow-sm">
+    <section class="admin-section">
 
-        <div
-            class="card-header bg-white d-flex
-                   justify-content-between
-                   align-items-center"
-        >
-
-            <strong>
-                Resultados
-            </strong>
-
-            <span class="badge bg-secondary">
-
-                {{ pagina.paginator.count }}
-                reserva{{ pagina.paginator.count|pluralize }}
-
-            </span>
-
-        </div>
+        <div class="card results-container">
 
 
-        <div class="table-responsive">
+            <!-- Encabezado de resultados -->
+            <div class="results-header">
 
-            <table
-                class="table table-hover
-                       align-middle mb-0"
-            >
+                <div
+                    class="d-flex
+                           justify-content-between
+                           align-items-center
+                           gap-3"
+                >
 
-                <thead class="table-light">
-
-                    <tr>
-
-                        <th>ID</th>
-
-                        <th>Usuario</th>
-
-                        <th>Establecimiento</th>
-
-                        <th>Cancha</th>
-
-                        <th>Fecha</th>
-
-                        <th>Horario</th>
-
-                        <th>Estado</th>
-
-                        <th class="text-end">
-                            Valor
-                        </th>
-
-                    </tr>
-
-                </thead>
+                    <h3 class="results-title">
+                        Resultados
+                    </h3>
 
 
-                <tbody>
+                    <span class="badge bg-secondary">
 
-                    {% for reserva in pagina %}
+                        {{ pagina.paginator.count }}
 
-                    <tr>
-                
-                        <td>
-                            #{{ reserva.reservation_id }}
-                        </td>
-                
-                        <td>
-                            {{ reserva.user.username }}
-                        </td>
-                
-                        <td>
-                            {{ reserva.court.venue.venue_name }}
-                        </td>
-                
-                        <td>
-                            {{ reserva.court.court_name }}
-                        </td>
-                
-                        <td>
-                            {{ reserva.reservation_date|date:"d/m/Y" }}
-                        </td>
-                
-                        <td>
-                            {{ reserva.start_time|time:"H:i" }}
-                            -
-                            {{ reserva.end_time|time:"H:i" }}
-                        </td>
-                
-                        <td>
-                
-                            {% if reserva.reservation_status == "CONFIRMED" %}
-                
-                                <span class="badge bg-success">
-                                    Confirmada
-                                </span>
-                
-                            {% elif reserva.reservation_status == "PENDING_PAYMENT" %}
-                
-                                <span class="badge bg-warning text-dark">
-                                    Pendiente
-                                </span>
-                
-                            {% elif reserva.reservation_status == "CANCELLED" %}
-                
-                                <span class="badge bg-danger">
-                                    Cancelada
-                                </span>
-                
-                            {% elif reserva.reservation_status == "EXPIRED" %}
-                
-                                <span class="badge bg-secondary">
-                                    Expirada
-                                </span>
-                
-                            {% elif reserva.reservation_status == "COMPLETED" %}
-                
-                                <span class="badge bg-primary">
-                                    Completada
-                                </span>
-                
-                            {% else %}
-                
-                                {{ reserva.get_reservation_status_display }}
-                
-                            {% endif %}
-                
-                        </td>
-                
-                        <td class="text-end">
-                            ${{ reserva.total_amount|floatformat:0 }}
-                        </td>
-                
-                    </tr>
-                
-                {% empty %}
+                        reserva{{ pagina.paginator.count|pluralize }}
+
+                    </span>
+
+                </div>
+
+            </div>
+
+
+            <!-- Tabla -->
+            <div class="table-responsive">
+
+                <table class="table table-hover align-middle">
+
+                    <thead>
 
                         <tr>
 
-                            <td
-                                colspan="8"
-                                class="text-center
-                                       py-5
-                                       text-muted"
-                            >
+                            <th>
+                                ID
+                            </th>
 
-                                No se encontraron reservas
-                                con los filtros seleccionados.
+                            <th>
+                                Usuario
+                            </th>
 
-                            </td>
+                            <th>
+                                Establecimiento
+                            </th>
+
+                            <th>
+                                Cancha
+                            </th>
+
+                            <th>
+                                Fecha
+                            </th>
+
+                            <th>
+                                Horario
+                            </th>
+
+                            <th>
+                                Estado
+                            </th>
+
+                            <th class="text-end">
+                                Valor
+                            </th>
 
                         </tr>
 
-                    {% endfor %}
+                    </thead>
 
-                </tbody>
 
-            </table>
+                    <tbody>
+
+                        {% for reserva in pagina %}
+
+                            <tr>
+
+
+                                <!-- ID -->
+                                <td>
+
+                                    #{{ reserva.reservation_id }}
+
+                                </td>
+
+
+                                <!-- Usuario -->
+                                <td>
+
+                                    {{ reserva.user.username }}
+
+                                </td>
+
+
+                                <!-- Establecimiento -->
+                                <td>
+
+                                    {{ reserva.court.venue.venue_name }}
+
+                                </td>
+
+
+                                <!-- Cancha -->
+                                <td>
+
+                                    {{ reserva.court.court_name }}
+
+                                </td>
+
+
+                                <!-- Fecha -->
+                                <td>
+
+                                    {{ reserva.reservation_date|date:"d/m/Y" }}
+
+                                </td>
+
+
+                                <!-- Horario -->
+                                <td>
+
+                                    {{ reserva.start_time|time:"H:i" }}
+
+                                    -
+
+                                    {{ reserva.end_time|time:"H:i" }}
+
+                                </td>
+
+
+                                <!-- Estado -->
+                                <td>
+
+                                    {% if reserva.reservation_status == "CONFIRMED" %}
+
+                                        <span class="badge bg-success">
+                                            Confirmada
+                                        </span>
+
+
+                                    {% elif reserva.reservation_status == "PENDING_PAYMENT" %}
+
+                                        <span class="badge bg-warning text-dark">
+                                            Pendiente
+                                        </span>
+
+
+                                    {% elif reserva.reservation_status == "CANCELLED" %}
+
+                                        <span class="badge bg-danger">
+                                            Cancelada
+                                        </span>
+
+
+                                    {% elif reserva.reservation_status == "EXPIRED" %}
+
+                                        <span class="badge bg-secondary">
+                                            Expirada
+                                        </span>
+
+
+                                    {% elif reserva.reservation_status == "COMPLETED" %}
+
+                                        <span class="badge bg-primary">
+                                            Completada
+                                        </span>
+
+
+                                    {% else %}
+
+                                        {{ reserva.get_reservation_status_display }}
+
+                                    {% endif %}
+
+                                </td>
+
+
+                                <!-- Valor -->
+                                <td class="text-end">
+
+                                    ${{ reserva.total_amount|floatformat:0 }}
+
+                                </td>
+
+                            </tr>
+
+
+                        {% empty %}
+
+
+                            <tr>
+
+                                <td
+                                    colspan="8"
+                                    class="text-center py-5 text-muted"
+                                >
+
+                                    No se encontraron reservas
+                                    con los filtros seleccionados.
+
+                                </td>
+
+                            </tr>
+
+
+                        {% endfor %}
+
+                    </tbody>
+
+                </table>
+
+            </div>
 
         </div>
 
-    </div>
+    </section>
 
 
+    <!-- ===================================== -->
     <!-- PAGINACIÓN -->
+    <!-- ===================================== -->
 
     {% if pagina.has_other_pages %}
 
@@ -395,6 +1044,7 @@
             <ul class="pagination justify-content-center">
 
 
+                <!-- Anterior -->
                 {% if pagina.has_previous %}
 
                     <li class="page-item">
@@ -411,6 +1061,7 @@
                 {% endif %}
 
 
+                <!-- Página actual -->
                 <li class="page-item disabled">
 
                     <span class="page-link">
@@ -425,6 +1076,7 @@
                 </li>
 
 
+                <!-- Siguiente -->
                 {% if pagina.has_next %}
 
                     <li class="page-item">
@@ -440,7 +1092,6 @@
 
                 {% endif %}
 
-
             </ul>
 
         </nav>
@@ -451,8 +1102,56 @@
 </main>
 
 
+<!-- ===================================== -->
+<!-- BOOTSTRAP -->
+<!-- ===================================== -->
+
 <script
     src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js">
+</script>
+
+
+<!-- ===================================== -->
+<!-- BARRAS DE OCUPACIÓN -->
+<!-- ===================================== -->
+
+<script>
+
+    document.addEventListener(
+        "DOMContentLoaded",
+        function () {
+
+            const progressBars =
+                document.querySelectorAll(
+                    ".occupancy-progress"
+                );
+
+            progressBars.forEach(
+                function (bar) {
+
+                    let value = parseFloat(
+                        bar.dataset.occupancy
+                    );
+
+                    if (isNaN(value)) {
+                        value = 0;
+                    }
+
+                    value = Math.max(
+                        0,
+                        Math.min(
+                            100,
+                            value
+                        )
+                    );
+
+                    bar.style.width =
+                        value + "%";
+                }
+            );
+        }
+    );
+
 </script>
 
 

@@ -8,6 +8,14 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_POST
+from django.contrib.auth import get_user_model
+
+from django.db.models import Min, Max
+from .kpis import (
+    get_court_occupancy,
+    get_summary_kpis,
+    get_cancellation_kpis,
+)
 
 from courts.models import Court
 from users.decorators import admin_required
@@ -16,10 +24,10 @@ from .models import Reservation
 from .services import (
     calculate_reservation_values,
     cancel_reservation,
+    create_admin_reservation,
     create_pending_reservation,
     expire_pending_reservations,
     get_availability,
-    process_simulated_payment,
 )
 
 
@@ -397,9 +405,212 @@ def cancelar_reserva_view(
     )
 
 
+
+@admin_required
+def admin_crear_reserva(request):
+
+    User = get_user_model()
+
+    users = (
+        User.objects
+        .filter(is_active=True)
+        .order_by("username")
+    )
+
+    courts = (
+        Court.objects
+        .select_related("venue")
+        .filter(is_active=True)
+        .order_by(
+            "venue__venue_name",
+            "court_name",
+        )
+    )
+
+    # Mantener los datos escritos si ocurre un error.
+    selected_user = request.POST.get(
+        "usuario",
+        ""
+    )
+
+    selected_court = request.POST.get(
+        "cancha",
+        ""
+    )
+
+    selected_date = request.POST.get(
+        "fecha",
+        ""
+    )
+
+    selected_start = request.POST.get(
+        "hora_inicio",
+        ""
+    )
+
+    selected_end = request.POST.get(
+        "hora_fin",
+        ""
+    )
+
+    if request.method == "POST":
+
+        # ---------------------------------
+        # Campos obligatorios
+        # ---------------------------------
+
+        if not all([
+            selected_user,
+            selected_court,
+            selected_date,
+            selected_start,
+            selected_end,
+        ]):
+            messages.error(
+                request,
+                "Debes completar todos los campos."
+            )
+
+        else:
+
+            try:
+
+                # -------------------------
+                # Usuario
+                # -------------------------
+
+                user = User.objects.get(
+                    pk=selected_user,
+                    is_active=True,
+                )
+
+                # -------------------------
+                # Cancha
+                # -------------------------
+
+                court = (
+                    Court.objects
+                    .select_related("venue")
+                    .get(
+                        court_id=selected_court,
+                        is_active=True,
+                    )
+                )
+
+                # -------------------------
+                # Fecha
+                # -------------------------
+
+                reservation_date = date.fromisoformat(
+                    selected_date
+                )
+
+                # -------------------------
+                # Horarios
+                # -------------------------
+
+                start_time = datetime.strptime(
+                    selected_start,
+                    "%H:%M",
+                ).time()
+
+                end_time = datetime.strptime(
+                    selected_end,
+                    "%H:%M",
+                ).time()
+
+                # -------------------------
+                # No permitir pasado
+                # -------------------------
+
+                if reservation_date < timezone.localdate():
+                    raise ValidationError(
+                        "No puedes crear una reserva "
+                        "para una fecha anterior a hoy."
+                    )
+
+                # -------------------------
+                # Crear reserva
+                # -------------------------
+
+                reservation = create_admin_reservation(
+                    user=user,
+                    court=court,
+                    reservation_date=reservation_date,
+                    start_time=start_time,
+                    end_time=end_time,
+                )
+
+            except User.DoesNotExist:
+
+                messages.error(
+                    request,
+                    "El usuario seleccionado no existe "
+                    "o se encuentra inactivo."
+                )
+
+            except Court.DoesNotExist:
+
+                messages.error(
+                    request,
+                    "La cancha seleccionada no existe "
+                    "o se encuentra inactiva."
+                )
+
+            except ValueError:
+
+                messages.error(
+                    request,
+                    "La fecha o el horario ingresado "
+                    "no es válido."
+                )
+
+            except ValidationError as error:
+
+                messages.error(
+                    request,
+                    error.messages[0]
+                )
+
+            else:
+
+                messages.success(
+                    request,
+                    (
+                        f"Reserva #{reservation.reservation_id} "
+                        "creada correctamente y confirmada."
+                    )
+                )
+
+                return redirect(
+                    "reservations:admin_reservas"
+                )
+
+    return render(
+        request,
+        "reservations/admin_crear_reserva.html",
+        {
+            "usuarios": users,
+            "canchas": courts,
+
+            "usuario_seleccionado": selected_user,
+            "cancha_seleccionada": selected_court,
+            "fecha_seleccionada": selected_date,
+            "hora_inicio_seleccionada": selected_start,
+            "hora_fin_seleccionada": selected_end,
+
+            "fecha_minima": (
+                timezone.localdate().isoformat()
+            ),
+        }
+    )
+
+
 @login_required(login_url="users:login")
 @admin_required
+@admin_required
 def admin_reservas(request):
+
     reservations = (
         Reservation.objects
         .select_related(
@@ -437,18 +648,22 @@ def admin_reservas(request):
         ""
     )
 
+    # Fechas ya convertidas para reutilizarlas en KPIs
+    parsed_start_date = None
+    parsed_end_date = None
+
     # ---------------------------------
     # Filtro fecha desde
     # ---------------------------------
 
     if start_date_filter:
         try:
-            start_date = date.fromisoformat(
+            parsed_start_date = date.fromisoformat(
                 start_date_filter
             )
 
             reservations = reservations.filter(
-                reservation_date__gte=start_date
+                reservation_date__gte=parsed_start_date
             )
 
         except ValueError:
@@ -463,12 +678,12 @@ def admin_reservas(request):
 
     if end_date_filter:
         try:
-            end_date = date.fromisoformat(
+            parsed_end_date = date.fromisoformat(
                 end_date_filter
             )
 
             reservations = reservations.filter(
-                reservation_date__lte=end_date
+                reservation_date__lte=parsed_end_date
             )
 
         except ValueError:
@@ -535,6 +750,85 @@ def admin_reservas(request):
     )
 
     # ---------------------------------
+    # Rango para KPIs
+    # ---------------------------------
+
+    kpi_base_queryset = Reservation.objects.all()
+
+    # Si se selecciona una cancha,
+    # el rango automático también se obtiene
+    # a partir de esa cancha.
+    if court_id:
+        kpi_base_queryset = kpi_base_queryset.filter(
+            court_id=court_id
+        )
+
+    bounds = kpi_base_queryset.aggregate(
+        min_date=Min("reservation_date"),
+        max_date=Max("reservation_date"),
+    )
+
+    today = timezone.localdate()
+
+    kpi_start_date = (
+        parsed_start_date
+        or bounds["min_date"]
+        or today
+    )
+
+    kpi_end_date = (
+        parsed_end_date
+        or bounds["max_date"]
+        or today
+    )
+
+    # Evitar un rango inválido
+    if kpi_start_date > kpi_end_date:
+        messages.warning(
+            request,
+            "La fecha inicial no puede ser "
+            "posterior a la fecha final."
+        )
+
+        kpi_start_date, kpi_end_date = (
+            kpi_end_date,
+            kpi_start_date
+        )
+
+    # ---------------------------------
+    # M3-09
+    # Reservas / horas / valor
+    # ---------------------------------
+
+    summary_kpis = get_summary_kpis(
+        start_date=kpi_start_date,
+        end_date=kpi_end_date,
+        court_id=court_id or None,
+    )
+
+    # ---------------------------------
+    # M3-10
+    # Cancelaciones
+    # ---------------------------------
+
+    cancellation_kpis = get_cancellation_kpis(
+        start_date=kpi_start_date,
+        end_date=kpi_end_date,
+        court_id=court_id or None,
+    )
+
+    # ---------------------------------
+    # M3-08
+    # Ocupación por cancha
+    # ---------------------------------
+
+    occupancy_by_court = get_court_occupancy(
+        start_date=kpi_start_date,
+        end_date=kpi_end_date,
+        court_id=court_id or None,
+    )
+
+    # ---------------------------------
     # Paginación
     # ---------------------------------
 
@@ -552,6 +846,10 @@ def admin_reservas(request):
     if "page" in parameters:
         parameters.pop("page")
 
+    # ---------------------------------
+    # Contexto
+    # ---------------------------------
+
     context = {
         "pagina": page,
         "canchas": courts,
@@ -563,6 +861,14 @@ def admin_reservas(request):
         "estado_seleccionado": status,
 
         "querystring": parameters.urlencode(),
+
+        # KPIs
+        "summary_kpis": summary_kpis,
+        "cancellation_kpis": cancellation_kpis,
+        "occupancy_by_court": occupancy_by_court,
+
+        "kpi_start_date": kpi_start_date,
+        "kpi_end_date": kpi_end_date,
     }
 
     return render(
