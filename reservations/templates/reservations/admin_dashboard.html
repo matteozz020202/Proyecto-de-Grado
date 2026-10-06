@@ -56,25 +56,108 @@
     <div class="mb-4">
         <h2 class="mb-1">Dashboard</h2>
         <p class="text-muted mb-0">
-            Resumen operativo de Cancha Lista para {{ hoy|date:"j \d\e F \d\e Y" }}.
+            Indicadores de reservas y ocupación de Cancha Lista.
         </p>
     </div>
 
-    <p class="text-muted">
-        Reservas de hoy y agenda: fecha indicada. Estados e ingresos: todo el historial
-        del origen seleccionado. Los ingresos suman pagos aprobados, incluidos abonos;
-        no representan el valor total de las reservas.
-    </p>
-    <form method="get" class="d-flex gap-2 align-items-center mb-4">
-        <label for="origen">Origen de reservas y pagos</label>
-        <select id="origen" name="origen" class="form-select w-auto">
-            {% for valor, etiqueta in origenes %}
-                <option value="{{ valor }}" {% if origen == valor %}selected{% endif %}>{{ etiqueta }}</option>
+    <form method="get" class="card card-body shadow-sm mb-4">
+        {{ form.non_field_errors }}
+        <div class="row g-3">
+            {% for field in form %}
+                <div class="col-12 col-md-6 col-lg-4">
+                    <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>
+                    {{ field }}
+                    {% for error in field.errors %}
+                        <div class="text-danger mt-1" role="alert">{{ error }}</div>
+                    {% endfor %}
+                </div>
             {% endfor %}
-            <option value="ALL" {% if origen == "ALL" %}selected{% endif %}>Todos los orígenes</option>
-        </select>
-        <button type="submit" class="btn btn-dark">Aplicar</button>
+        </div>
+        <div class="mt-3 d-flex gap-2">
+            <button type="submit" class="btn btn-dark">Aplicar filtros</button>
+            <a href="{% url 'reservations:admin_dashboard' %}" class="btn btn-outline-secondary">Restablecer</a>
+        </div>
     </form>
+
+    {% if filtros_validos %}
+    <p class="text-muted">
+        Período: {{ fecha_inicio|date:"d/m/Y" }} – {{ fecha_fin|date:"d/m/Y" }} (fechas incluidas).
+        Todos los indicadores, pagos y agendas se limitan a las reservas del período y filtros seleccionados.
+        Los ingresos suman pagos aprobados, incluidos abonos, asociados a esas reservas;
+        no representan el valor total de las reservas ni un reporte por fecha de cobro.
+    </p>
+    {% if datos_sinteticos %}
+        <div class="alert alert-info">
+            Este resultado incluye datos sintéticos de demostración y pruebas.
+            No representa el comportamiento real de las canchas de Barranquilla.
+        </div>
+    {% endif %}
+
+    <section class="card shadow-sm mb-4" aria-labelledby="ocupacion-titulo">
+        <div class="card-body">
+            <h4 id="ocupacion-titulo">
+                {% if tipo_analisis == 'FUTURE' %}Ocupación programada{% else %}Ocupación histórica{% endif %}
+            </h4>
+            <p class="text-muted">
+                {% if tipo_analisis == 'FUTURE' %}
+                    Usa únicamente reservas confirmadas; es capacidad programada, pendiente de realizarse.
+                    Para hoy, calcula solo las horas restantes desde la hora actual, incluidas
+                    las partes pendientes de reservas en curso.
+                {% else %}
+                    Usa únicamente reservas completadas.
+                {% endif %}
+                Pendientes, canceladas y expiradas no suman ocupación.
+                La capacidad se calcula con los horarios activos actuales; no existe un historial
+                de cambios de horarios para reconstruir capacidad pasada.
+            </p>
+            <div class="row g-3 mb-3">
+                <div class="col-6 col-lg-3">
+                    <p class="text-muted mb-1">Ocupación</p>
+                    <h3>{% if ocupacion.ocupacion != None %}{{ ocupacion.ocupacion|floatformat:2 }}%{% else %}N/D{% endif %}</h3>
+                </div>
+                <div class="col-6 col-lg-3">
+                    <p class="text-muted mb-1">Horas reservadas</p>
+                    <h3>{{ ocupacion.horas_reservadas|floatformat:2 }}</h3>
+                </div>
+                <div class="col-6 col-lg-3">
+                    <p class="text-muted mb-1">Horas disponibles</p>
+                    <h3>{{ ocupacion.horas_disponibles|floatformat:2 }}</h3>
+                </div>
+                <div class="col-6 col-lg-3">
+                    <p class="text-muted mb-1">Reservas válidas para ocupación</p>
+                    <h3>{{ ocupacion.reservas_validas }}</h3>
+                </div>
+            </div>
+            {% if ocupacion.ocupacion == None %}
+                <p class="text-muted">No hay capacidad configurada para calcular el porcentaje.</p>
+            {% endif %}
+            {% if ocupacion.capacidad_inconsistente %}
+                <div class="alert alert-warning">
+                    Hay canchas con más horas reservadas que capacidad configurada.
+                    Revisa los horarios; el porcentaje conserva el valor calculado.
+                </div>
+            {% endif %}
+            <div class="table-responsive">
+                <table class="table table-sm align-middle mb-0">
+                    <caption>Ocupación por cancha con los mismos filtros del resumen</caption>
+                    <thead><tr><th>Establecimiento</th><th>Cancha</th><th>Horas reservadas</th><th>Capacidad (h)</th><th>Ocupación</th></tr></thead>
+                    <tbody>
+                        {% for fila in ocupacion.por_cancha %}
+                            <tr>
+                                <td>{{ fila.cancha.venue.venue_name }}</td>
+                                <td>{{ fila.cancha.court_name }}</td>
+                                <td>{{ fila.horas_reservadas|floatformat:2 }}</td>
+                                <td>{{ fila.horas_disponibles|floatformat:2 }}</td>
+                                <td>{% if fila.ocupacion != None %}{{ fila.ocupacion|floatformat:2 }}%{% else %}N/D{% endif %}</td>
+                            </tr>
+                        {% empty %}
+                            <tr><td colspan="5">No hay canchas para los filtros seleccionados.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </section>
 
     <div class="row g-3 mb-4">
         <div class="col-6 col-lg-3">
@@ -104,7 +187,7 @@
         <div class="col-6 col-lg-3">
             <div class="card shadow-sm h-100">
                 <div class="card-body">
-                    <p class="text-muted mb-1">Ingresos aprobados acumulados</p>
+                    <p class="text-muted mb-1">Pagos aprobados de reservas del período</p>
                     <h3 class="mb-0">${{ ingresos_aprobados }}</h3>
                     <small class="text-muted">
                         {{ pagos_aprobados }} pago{{ pagos_aprobados|pluralize }}
@@ -232,6 +315,7 @@
         </div>
     </div>
 
+    {% endif %}
 </main>
 
 </body>

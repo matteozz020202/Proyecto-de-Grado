@@ -14,6 +14,8 @@ from courts.models import Court, Venue
 from users.decorators import admin_required
 
 from .models import Payment, Reservation
+from .analytics import occupancy
+from .forms import DashboardFilterForm
 from .services import (
     calculate_reservation_values,
     cancel_reservation,
@@ -576,15 +578,25 @@ def admin_reservas(request):
 @login_required(login_url="users:login")
 @admin_required
 def admin_dashboard(request):
-    expire_pending_reservations()
-
     now = timezone.localtime()
     today = now.date()
-
-    data_source = request.GET.get("origen", "SYSTEM")
-    if data_source not in dict(Reservation.DATA_SOURCES) and data_source != "ALL":
-        data_source = "SYSTEM"
-    reservations = Reservation.objects.all()
+    form = DashboardFilterForm(request.GET)
+    if not form.is_valid():
+        return render(request, "reservations/admin_dashboard.html", {
+            "hoy": today, "form": form, "filtros_validos": False,
+        })
+    expire_pending_reservations()
+    filters = form.cleaned_data
+    data_source = filters["origen"]
+    start_date, end_date = filters["fecha_inicio"], filters["fecha_fin"]
+    courts = Court.objects.select_related("venue").all()
+    if filters["establecimiento"]:
+        courts = courts.filter(venue=filters["establecimiento"])
+    if filters["cancha"]:
+        courts = courts.filter(pk=filters["cancha"].pk)
+    reservations = Reservation.objects.filter(
+        court__in=courts, reservation_date__range=(start_date, end_date),
+    )
     if data_source != "ALL":
         reservations = reservations.filter(data_source=data_source)
 
@@ -644,12 +656,19 @@ def admin_dashboard(request):
 
     context = {
         "hoy": today,
+        "form": form,
+        "filtros_validos": True,
+        "fecha_inicio": start_date,
+        "fecha_fin": end_date,
+        "tipo_analisis": filters["tipo"],
+        "ocupacion": occupancy(courts, reservations, start_date, end_date, filters["tipo"]),
+        "datos_sinteticos": reservations.filter(data_source="SYNTHETIC").exists(),
         "origen": data_source,
         "origenes": Reservation.DATA_SOURCES,
         "total_establecimientos": Venue.objects.filter(
-            is_active=True
+            pk__in=courts.values("venue_id"), is_active=True,
         ).count(),
-        "total_canchas": Court.objects.filter(
+        "total_canchas": courts.filter(
             is_active=True
         ).count(),
         "reservas_hoy": reservations.filter(
