@@ -18,6 +18,7 @@ class DashboardFilterForm(forms.Form):
     cancha = forms.ModelChoiceField(
         label="Cancha", queryset=Court.objects.select_related("venue").all(), required=False,
         empty_label="Todas las canchas",
+        error_messages={"invalid_choice": "Selecciona una cancha del establecimiento elegido."},
     )
     fecha_inicio = forms.DateField(
         label="Desde", input_formats=["%Y-%m-%d"],
@@ -47,6 +48,18 @@ class DashboardFilterForm(forms.Form):
         if data["origen"] not in dict(self.base_fields["origen"].choices):
             data["origen"] = "SYSTEM"
         super().__init__(data, *args, **kwargs)
+        all_courts = self.fields["cancha"].queryset
+        self.court_options = [
+            {"id": str(court.pk), "venue": str(court.venue_id), "label": str(court)}
+            for court in all_courts
+        ]
+        if data["establecimiento"]:
+            try:
+                venue_id = int(data["establecimiento"])
+            except (TypeError, ValueError):
+                self.fields["cancha"].queryset = all_courts.none()
+            else:
+                self.fields["cancha"].queryset = all_courts.filter(venue_id=venue_id)
         for field in self.fields.values():
             field.widget.attrs["class"] = "form-select" if isinstance(field.widget, forms.Select) else "form-control"
 

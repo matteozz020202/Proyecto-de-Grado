@@ -4,7 +4,7 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
 from django.core.paginator import Paginator
-from django.db.models import Count, Q, Sum
+from django.db.models import Q
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
@@ -13,8 +13,8 @@ from django.views.decorators.http import require_POST
 from courts.models import Court, Venue
 from users.decorators import admin_required
 
-from .models import Payment, Reservation
-from .analytics import occupancy
+from .models import Reservation
+from .analytics import dashboard_data
 from .forms import DashboardFilterForm
 from .services import (
     calculate_reservation_values,
@@ -600,19 +600,8 @@ def admin_dashboard(request):
     if data_source != "ALL":
         reservations = reservations.filter(data_source=data_source)
 
-    status_counts = {
-        row["reservation_status"]: row["total"]
-        for row in reservations.values(
-            "reservation_status"
-        ).annotate(
-            total=Count("reservation_id")
-        )
-    }
-
-    approved_payments = Payment.objects.filter(
-        payment_status="APPROVED",
-        reservation__in=reservations,
-    )
+    analytics = dashboard_data(courts, reservations, start_date, end_date, filters["tipo"], data_source)
+    status_counts = analytics["status_counts"]
 
     upcoming = (
         reservations.filter(
@@ -661,8 +650,10 @@ def admin_dashboard(request):
         "fecha_inicio": start_date,
         "fecha_fin": end_date,
         "tipo_analisis": filters["tipo"],
-        "ocupacion": occupancy(courts, reservations, start_date, end_date, filters["tipo"]),
-        "datos_sinteticos": reservations.filter(data_source="SYNTHETIC").exists(),
+        "ocupacion": analytics["occupancy"],
+        "dashboard_data": analytics,
+        "chart_data": analytics["chart_data"],
+        "datos_sinteticos": data_source == "SYNTHETIC" or reservations.filter(data_source="SYNTHETIC").exists(),
         "origen": data_source,
         "origenes": Reservation.DATA_SOURCES,
         "total_establecimientos": Venue.objects.filter(
@@ -695,11 +686,12 @@ def admin_dashboard(request):
             "CANCELLED",
             0
         ),
-        "ingresos_aprobados": approved_payments.aggregate(
-            total=Sum("amount")
-        )["total"] or 0,
-        "pagos_aprobados": approved_payments.count(),
+        "ingresos_aprobados": analytics["approved_payments"],
+        "pagos_aprobados": analytics["approved_payment_count"],
         "agenda_hoy": today_reservations,
+        "ultimas_reservas": reservations.select_related("user", "court", "court__venue").order_by(
+            "-reservation_date", "-start_time", "-pk",
+        )[:8],
         "proximas_reservas": upcoming,
     }
 
