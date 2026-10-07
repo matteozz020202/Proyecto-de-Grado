@@ -446,7 +446,10 @@ class AdminDashboardTests(TestCase):
         tomorrow = self.reservation(hour=8, days=1)
         self.reservation(hour=14, status="CANCELLED")
         self.reservation(hour=15, status="COMPLETED")
-        response = self.client.get(self.url)
+        response = self.client.get(self.url, {
+            "tipo": "FUTURE", "fecha_inicio": self.now.date().isoformat(),
+            "fecha_fin": (self.now.date() + timedelta(days=1)).isoformat(),
+        })
         self.assertEqual(list(response.context["proximas_reservas"]),
                          [at_now, future, tomorrow])
         self.assertEqual(response.context["reservas_hoy"], 5)
@@ -492,7 +495,7 @@ class AdminDashboardTests(TestCase):
         response = self.client.get(self.url)
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.context["ingresos_aprobados"], 0)
-        self.assertContains(response, "todo el historial")
+        self.assertContains(response, "reservas del período")
         home = self.client.get(reverse("users:home"))
         self.assertContains(home, self.url)
 

@@ -4,7 +4,7 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
 from django.core.paginator import Paginator
-from django.db.models import Count, Q, Sum
+from django.db.models import Q
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
@@ -13,7 +13,9 @@ from django.views.decorators.http import require_POST
 from courts.models import Court, Venue
 from users.decorators import admin_required
 
-from .models import Payment, Reservation
+from .models import Reservation
+from .analytics import dashboard_data
+from .forms import DashboardFilterForm
 from .services import (
     calculate_reservation_values,
     cancel_reservation,
@@ -576,31 +578,30 @@ def admin_reservas(request):
 @login_required(login_url="users:login")
 @admin_required
 def admin_dashboard(request):
-    expire_pending_reservations()
-
     now = timezone.localtime()
     today = now.date()
-
-    data_source = request.GET.get("origen", "SYSTEM")
-    if data_source not in dict(Reservation.DATA_SOURCES) and data_source != "ALL":
-        data_source = "SYSTEM"
-    reservations = Reservation.objects.all()
+    form = DashboardFilterForm(request.GET)
+    if not form.is_valid():
+        return render(request, "reservations/admin_dashboard.html", {
+            "hoy": today, "form": form, "filtros_validos": False,
+        })
+    expire_pending_reservations()
+    filters = form.cleaned_data
+    data_source = filters["origen"]
+    start_date, end_date = filters["fecha_inicio"], filters["fecha_fin"]
+    courts = Court.objects.select_related("venue").all()
+    if filters["establecimiento"]:
+        courts = courts.filter(venue=filters["establecimiento"])
+    if filters["cancha"]:
+        courts = courts.filter(pk=filters["cancha"].pk)
+    reservations = Reservation.objects.filter(
+        court__in=courts, reservation_date__range=(start_date, end_date),
+    )
     if data_source != "ALL":
         reservations = reservations.filter(data_source=data_source)
 
-    status_counts = {
-        row["reservation_status"]: row["total"]
-        for row in reservations.values(
-            "reservation_status"
-        ).annotate(
-            total=Count("reservation_id")
-        )
-    }
-
-    approved_payments = Payment.objects.filter(
-        payment_status="APPROVED",
-        reservation__in=reservations,
-    )
+    analytics = dashboard_data(courts, reservations, start_date, end_date, filters["tipo"], data_source)
+    status_counts = analytics["status_counts"]
 
     upcoming = (
         reservations.filter(
@@ -644,12 +645,21 @@ def admin_dashboard(request):
 
     context = {
         "hoy": today,
+        "form": form,
+        "filtros_validos": True,
+        "fecha_inicio": start_date,
+        "fecha_fin": end_date,
+        "tipo_analisis": filters["tipo"],
+        "ocupacion": analytics["occupancy"],
+        "dashboard_data": analytics,
+        "chart_data": analytics["chart_data"],
+        "datos_sinteticos": data_source == "SYNTHETIC" or reservations.filter(data_source="SYNTHETIC").exists(),
         "origen": data_source,
         "origenes": Reservation.DATA_SOURCES,
         "total_establecimientos": Venue.objects.filter(
-            is_active=True
+            pk__in=courts.values("venue_id"), is_active=True,
         ).count(),
-        "total_canchas": Court.objects.filter(
+        "total_canchas": courts.filter(
             is_active=True
         ).count(),
         "reservas_hoy": reservations.filter(
@@ -676,11 +686,12 @@ def admin_dashboard(request):
             "CANCELLED",
             0
         ),
-        "ingresos_aprobados": approved_payments.aggregate(
-            total=Sum("amount")
-        )["total"] or 0,
-        "pagos_aprobados": approved_payments.count(),
+        "ingresos_aprobados": analytics["approved_payments"],
+        "pagos_aprobados": analytics["approved_payment_count"],
         "agenda_hoy": today_reservations,
+        "ultimas_reservas": reservations.select_related("user", "court", "court__venue").order_by(
+            "-reservation_date", "-start_time", "-pk",
+        )[:8],
         "proximas_reservas": upcoming,
     }
 
