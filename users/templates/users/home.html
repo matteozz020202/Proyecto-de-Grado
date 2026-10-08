@@ -131,6 +131,10 @@
 
             </div>
 
+        </div>
+
+
+        {% if rol == "Administrador" or rol == "Superusuario" %}
 
             {% if user.is_staff or user.is_superuser %}
 
@@ -145,6 +149,25 @@
                             </h4>
 
                             <p class="text-muted">
+                                Indicadores del día, agenda de reservas
+                                e ingresos registrados.
+                            </p>
+
+                            <a
+                                href="{% url 'reservations:admin_dashboard' %}"
+                                class="btn btn-dark"
+                            >
+                                Abrir dashboard
+                            </a>
+
+                            <a
+                                href="{% url 'reservations:admin_reservas' %}"
+                                class="btn btn-outline-dark"
+                            >
+                                Ver reservas
+                            </a>
+
+                        </div>
                                 Gestiona y consulta las reservas registradas,
                                 aplica filtros y accede a las herramientas
                                 administrativas de Cancha Lista.
