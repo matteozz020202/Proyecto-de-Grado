@@ -290,6 +290,45 @@ def create_pending_reservation(
 
     return reservation
 
+@transaction.atomic
+def create_admin_reservation(
+    user,
+    court,
+    reservation_date,
+    start_time,
+    end_time,
+):
+    """
+    Creates a reservation manually from the
+    administrative panel.
+
+    The existing reservation creation service is reused
+    so schedule and overlap validations remain centralized.
+
+    Administrative reservations are confirmed immediately
+    and do not use the 15-minute payment hold.
+    """
+
+    reservation = create_pending_reservation(
+        user=user,
+        court=court,
+        reservation_date=reservation_date,
+        start_time=start_time,
+        end_time=end_time,
+    )
+
+    reservation.reservation_status = "CONFIRMED"
+    reservation.hold_expires_at = None
+
+    reservation.save(
+        update_fields=[
+            "reservation_status",
+            "hold_expires_at",
+        ]
+    )
+
+    return reservation
+
 
 @transaction.atomic
 def process_simulated_payment(
