@@ -14,37 +14,67 @@ de desarrollo ni la compartida. Valida el dashboard y el flujo de reservas;
 los bloqueos y la concurrencia deben comprobarse también con PostgreSQL local.
 
 El dashboard administrativo está en `/reservas/admin/dashboard/`. Por defecto
-muestra reservas y pagos del sistema; permite seleccionar datos sintéticos,
-históricos reales o todos los orígenes. Los estados e ingresos son acumulados;
-la agenda y el contador de hoy corresponden a la fecha de Bogotá.
+muestra reservas y pagos del sistema desde el 1 de enero hasta hoy; permite
+seleccionar datos sintéticos, históricos reales o todos los orígenes.
 
-## Dataset sintético v1.1
+## Filtros y ocupación
 
-Instalar `openpyxl` (declarado en `requirements.txt`). El comando acepta el ZIP
-ajustado o su Excel Core; no importa las hojas analíticas/capacidad en tablas nuevas.
+El panel permite filtrar por origen, establecimiento, cancha y fechas inclusivas
+(máximo 366 días). Rechaza fechas inválidas y canchas ajenas al establecimiento
+seleccionado. Estados, pagos aprobados, agendas y ocupación usan los mismos filtros.
+Los pagos se filtran por fecha de la reserva, no por fecha de cobro.
 
-```bash
-# Validar archivo y relaciones sin conectarse a la base ni guardar datos:
-python manage.py importar_dataset /ruta/Cancha_Lista_Dataset_Sintetico_v1_1_Ajustado.zip
+El análisis histórico admite fechas hasta hoy y calcula ocupación exclusivamente
+con reservas `COMPLETED`. El programado admite fechas desde hoy y usa `CONFIRMED`;
+por defecto propone los próximos 30 días. Pendientes, canceladas y expiradas no
+suman ocupación. Para hoy, el análisis programado cuenta solo la capacidad y las
+horas confirmadas restantes desde la hora actual (incluye reservas en curso).
+La agenda y el contador de hoy usan la fecha de Bogotá.
 
-# Cargar en la base elegida por .env (USE_NEON=True para Neon):
-python manage.py importar_dataset /ruta/Cancha_Lista_Dataset_Sintetico_v1_1_Ajustado.zip --commit
-```
+La ocupación es `SUM(horas reservadas) / SUM(horas disponibles) × 100`, calculada
+globalmente y por cancha. La capacidad se deriva de los horarios activos con días
+1–7, uniendo intervalos superpuestos para no duplicar capacidad. En el análisis
+programado se excluye la capacidad de canchas o establecimientos inactivos.
 
-Se validan IDs, referencias, estados, pagos aprobados, montos y solapamientos.
-La carga es transaccional: cualquier colisión revierte toda la operación. No borra
-ni sobrescribe registros existentes. Una repetición con el mismo archivo omite
-registros idénticos. Los IDs originales se conservan excepto los de usuarios,
-que se mapean a cuentas `synthetic_v1_1_<id>`, inactivas, sin privilegios ni
-contraseña utilizable. Los hashes/contraseñas del Excel no se importan.
+Sin capacidad el porcentaje es `N/D` (null), no cero. Si las reservas exceden la
+capacidad, se informa la inconsistencia sin recortar el resultado a 100%.
+No existe un historial de cambios de horarios: la capacidad histórica utiliza
+la configuración actual. Los resultados sintéticos se identifican como datos
+de demostración que no representan actividad real de Barranquilla.
 
-El porcentaje de abono del Excel se convierte de fracción a porcentaje (0.30 → 30).
-Se conservan fechas, valores, referencias de pago y estados del archivo, con
-timezone de Django (Bogotá). No se desplazan fechas para simular demanda actual.
-El dataset cubre enero–septiembre de 2026 y no describe actividad real.
+## Dashboard Sprint 3 (H3-08, H3-09 y H3-10)
 
-En el dashboard, seleccionar **Sintético** para visualizar los datos importados.
-La expiración lazy puede convertir pendientes históricos vencidos a `EXPIRED`
-al consultar las vistas; repetir la importación no revierte esas expiraciones.
-Las tablas de usuarios, canchas, horarios, reservas y pagos se bloquean durante
-la carga PostgreSQL para impedir importaciones o escrituras simultáneas.
+El resumen prioriza ocupación, reservas válidas, horas reservadas, abonos aprobados
+y cancelación. Abonos suma solo pagos `DEPOSIT` aprobados; el detalle económico
+conserva el total de pagos aprobados (incluye saldos) y el valor almacenado de las
+reservas válidas. Cancelación = `CANCELLED / (CONFIRMED + COMPLETED + CANCELLED)`;
+sin reservas formalizadas devuelve N/D, no cero.
+
+Chart.js 4.5.1 se sirve desde los archivos estáticos del proyecto, con su licencia
+MIT. Presenta barras de ocupación por día, línea por franjas de una hora y dona de
+estados existentes en el período. Sigue la [integración oficial](https://www.chartjs.org/docs/latest/getting-started/integration.html)
+y las [opciones responsive](https://www.chartjs.org/docs/latest/configuration/responsive.html).
+
+`reservations/analytics.py` calcula los KPIs y prepara el JSON seguro para las
+gráficas. Distribuye horas entre franjas (incluidas horas parciales), une horarios
+superpuestos y divide las sumas de horas por las sumas de capacidad. No calcula
+ocupación a partir del conteo de reservas ni promedia porcentajes de canchas.
+Los días sin capacidad usan null; las franjas sin capacidad se omiten. Los ejes
+gráficos van de 0 a 100%; si los datos exceden capacidad se muestra una advertencia
+y los valores originales quedan disponibles en las tablas de detalle.
+
+Todos los bloques usan el mismo origen, venue, cancha y rango inclusivo. Últimas
+reservas ordena por fecha de servicio descendente; próximas reservas muestra las
+pendientes/confirmadas que aún no empiezan, dentro del mismo rango. Las selecciones
+se conservan en GET; cambiar de venue actualiza las canchas y limpia una selección
+incompatible. Restablecer elimina los parámetros y recupera los defaults.
+
+Las gráficas incluyen tablas accesibles y estados vacíos. Si la librería no carga,
+se muestra la tabla sin interrumpir KPIs o reservas. Escritorio muestra dos gráficos
+por fila; móvil los apila. Insights queda vacío hasta conectar GPT: no hay respuestas
+ni comparaciones ficticias. `dashboard_data.analysis_context` conserva el alcance
+seleccionado para una integración futura.
+
+Deuda pendiente: versionar horarios históricos, comprobar concurrencia con
+PostgreSQL local e integrar GPT con validación de su contrato. No se modificaron
+modelos ni migraciones para esta entrega.

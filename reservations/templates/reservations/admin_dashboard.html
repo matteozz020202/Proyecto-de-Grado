@@ -1,3 +1,4 @@
+{% load i18n static %}
 <!DOCTYPE html>
 <html lang="es">
 
@@ -9,6 +10,15 @@
         href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
         rel="stylesheet"
     >
+    <style>
+        .chart-frame { position: relative; height: 280px; width: 100%; }
+        .kpi-value { font-size: clamp(1.2rem, 1.6vw, 1.8rem); overflow-wrap: anywhere; }
+        .kpi-money { font-size: clamp(0.9rem, 1.3vw, 1.4rem); }
+        .court-table { min-width: 640px; }
+        .reservation-table { min-width: 650px; }
+        .chart-card { height: 100%; }
+        @media (max-width: 575px) { .chart-frame { height: 240px; } }
+    </style>
 </head>
 
 <body class="bg-light">
@@ -56,183 +66,178 @@
     <div class="mb-4">
         <h2 class="mb-1">Dashboard</h2>
         <p class="text-muted mb-0">
-            Resumen operativo de Cancha Lista para {{ hoy|date:"j \d\e F \d\e Y" }}.
+            Indicadores de reservas y ocupación de Cancha Lista.
         </p>
     </div>
 
-    <p class="text-muted">
-        Reservas de hoy y agenda: fecha indicada. Estados e ingresos: todo el historial
-        del origen seleccionado. Los ingresos suman pagos aprobados, incluidos abonos;
-        no representan el valor total de las reservas.
-    </p>
-    <form method="get" class="d-flex gap-2 align-items-center mb-4">
-        <label for="origen">Origen de reservas y pagos</label>
-        <select id="origen" name="origen" class="form-select w-auto">
-            {% for valor, etiqueta in origenes %}
-                <option value="{{ valor }}" {% if origen == valor %}selected{% endif %}>{{ etiqueta }}</option>
+    <form method="get" class="card card-body shadow-sm mb-4">
+        {{ form.non_field_errors }}
+        <div class="row g-3">
+            {% for field in form %}
+                <div class="col-12 col-md-6 col-lg-4">
+                    <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>
+                    {{ field }}
+                    {% for error in field.errors %}
+                        <div class="text-danger mt-1" role="alert">{{ error }}</div>
+                    {% endfor %}
+                </div>
             {% endfor %}
-            <option value="ALL" {% if origen == "ALL" %}selected{% endif %}>Todos los orígenes</option>
-        </select>
-        <button type="submit" class="btn btn-dark">Aplicar</button>
+        </div>
+        <div class="mt-3 d-flex gap-2">
+            <button type="submit" class="btn btn-dark">Aplicar filtros</button>
+            <a href="{% url 'reservations:admin_dashboard' %}" class="btn btn-outline-secondary">Restablecer</a>
+        </div>
     </form>
 
-    <div class="row g-3 mb-4">
-        <div class="col-6 col-lg-3">
-            <div class="card shadow-sm h-100">
-                <div class="card-body">
-                    <p class="text-muted mb-1">Establecimientos activos</p>
-                    <h3 class="mb-0">{{ total_establecimientos }}</h3>
-                </div>
-            </div>
+    {% if filtros_validos %}
+    <p class="text-muted">
+        Período: {{ fecha_inicio|date:"d/m/Y" }} – {{ fecha_fin|date:"d/m/Y" }} (fechas incluidas).
+        Todos los indicadores, pagos y agendas se limitan a las reservas del período y filtros seleccionados.
+        Los ingresos suman pagos aprobados, incluidos abonos, asociados a esas reservas;
+        no representan el valor total de las reservas ni un reporte por fecha de cobro.
+    </p>
+    {% if datos_sinteticos %}
+        <div class="alert alert-info">
+            Este resultado utiliza datos sintéticos de demostración y pruebas.
+            No representa el comportamiento real de las canchas de Barranquilla.
         </div>
-        <div class="col-6 col-lg-3">
-            <div class="card shadow-sm h-100">
-                <div class="card-body">
-                    <p class="text-muted mb-1">Canchas activas</p>
-                    <h3 class="mb-0">{{ total_canchas }}</h3>
-                </div>
-            </div>
+    {% endif %}
+
+    <section aria-labelledby="resumen-titulo" class="mb-4">
+        <h3 id="resumen-titulo" class="h5">Resumen del período</h3>
+        <p class="text-muted small mb-3">
+            {% if tipo_analisis == 'FUTURE' %}
+                Ocupación programada: usa únicamente reservas confirmadas. Hoy se cuentan solo
+                las horas restantes, incluidas las de reservas en curso.
+            {% else %}
+                Ocupación histórica: usa únicamente reservas completadas.
+            {% endif %}
+            Pendientes, canceladas y expiradas no suman ocupación.
+        </p>
+        <div class="row row-cols-2 row-cols-lg-5 g-3">
+            <div class="col"><div class="card shadow-sm h-100"><div class="card-body">
+                <p class="text-muted mb-1">Ocupación</p>
+                <strong class="kpi-value">{% if ocupacion.ocupacion != None %}{{ ocupacion.ocupacion|floatformat:2 }}%{% else %}N/D{% endif %}</strong>
+            </div></div></div>
+            <div class="col"><div class="card shadow-sm h-100"><div class="card-body">
+                <p class="text-muted mb-1">Reservas válidas</p>
+                <strong class="kpi-value">{{ ocupacion.reservas_validas }}</strong>
+            </div></div></div>
+            <div class="col"><div class="card shadow-sm h-100"><div class="card-body">
+                <p class="text-muted mb-1">Horas reservadas</p>
+                <strong class="kpi-value">{{ ocupacion.horas_reservadas|floatformat:2 }}</strong>
+            </div></div></div>
+            <div class="col"><div class="card shadow-sm h-100"><div class="card-body">
+                <p class="text-muted mb-1">Abonos aprobados</p>
+                <strong class="kpi-value kpi-money">{% language "es-co" %}${{ dashboard_data.summary.approved_deposits|floatformat:"2g" }}{% endlanguage %}</strong>
+            </div></div></div>
+            <div class="col"><div class="card shadow-sm h-100"><div class="card-body">
+                <p class="text-muted mb-1">Cancelación</p>
+                <strong class="kpi-value">{% if dashboard_data.summary.cancellation_rate != None %}{{ dashboard_data.summary.cancellation_rate|floatformat:2 }}%{% else %}N/D{% endif %}</strong>
+            </div></div></div>
         </div>
-        <div class="col-6 col-lg-3">
-            <div class="card shadow-sm h-100">
-                <div class="card-body">
-                    <p class="text-muted mb-1">Reservas de hoy</p>
-                    <h3 class="mb-0">{{ reservas_hoy }}</h3>
-                </div>
-            </div>
+        <p class="small text-muted mt-2 mb-0">
+            Cancelación = canceladas / (confirmadas + completadas + canceladas).
+            Abonos incluye solo pagos de tipo abono aprobados del contexto seleccionado.
+        </p>
+    </section>
+    {% if ocupacion.capacidad_inconsistente %}
+        <div class="alert alert-warning">Hay más horas reservadas que capacidad configurada en alguna cancha o franja.
+            Revisa los horarios. Los porcentajes originales se conservan en el detalle.</div>
+    {% endif %}
+
+    <div class="row g-4 mb-4">
+        <div class="col-12 col-lg-6">
+            {% include 'reservations/dashboard_chart.html' with title='Ocupación por día de la semana' chart_id='occupancy-day' rows=chart_data.occupancy_by_day %}
         </div>
-        <div class="col-6 col-lg-3">
-            <div class="card shadow-sm h-100">
-                <div class="card-body">
-                    <p class="text-muted mb-1">Ingresos aprobados acumulados</p>
-                    <h3 class="mb-0">${{ ingresos_aprobados }}</h3>
-                    <small class="text-muted">
-                        {{ pagos_aprobados }} pago{{ pagos_aprobados|pluralize }}
-                    </small>
-                </div>
-            </div>
+        <div class="col-12 col-lg-6">
+            {% include 'reservations/dashboard_chart.html' with title='Ocupación por franja horaria' chart_id='occupancy-hour' rows=chart_data.occupancy_by_time_slot %}
+        </div>
+    </div>
+    <div class="row g-4 mb-4">
+        <div class="col-12 col-lg-6">
+            <section class="card shadow-sm chart-card" aria-labelledby="status-title"><div class="card-body">
+                <h3 id="status-title" class="h5">Estado de reservas</h3>
+                <p class="text-muted small">Distribución descriptiva del período; no calcula ocupación.</p>
+                <p id="status-empty" class="text-muted" hidden>No hay información para los filtros seleccionados.</p>
+                <div class="chart-frame"><canvas id="reservation-status" role="img" aria-label="Distribución de estados de reservas"></canvas></div>
+                <details class="mt-3 chart-details"><summary>Ver datos de estados</summary>
+                    <table class="table table-sm mt-2"><thead><tr><th>Estado</th><th>Reservas</th></tr></thead><tbody>
+                        {% for row in chart_data.reservation_status_distribution %}
+                            <tr><td>{{ row.label }}</td><td>{{ row.count }}</td></tr>
+                        {% empty %}<tr><td colspan="2">No hay información para los filtros seleccionados.</td></tr>{% endfor %}
+                    </tbody></table>
+                </details>
+            </div></section>
+        </div>
+        <div class="col-12 col-lg-6">
+            <section class="card shadow-sm h-100" aria-labelledby="insights-title"><div class="card-body">
+                <h3 id="insights-title" class="h5">Insights del período</h3>
+                <p class="text-muted">No se ha generado un análisis inteligente para este contexto.</p>
+            </div></section>
         </div>
     </div>
 
-    <div class="row g-3 mb-4">
-        <div class="col-6 col-md-3">
-            <div class="card border-warning shadow-sm h-100">
-                <div class="card-body">
-                    <p class="text-muted mb-1">Pendientes de pago</p>
-                    <h4 class="mb-0">{{ pendientes_pago }}</h4>
-                </div>
-            </div>
+    <section class="card shadow-sm mb-4" aria-labelledby="court-title"><div class="card-body">
+        <h3 id="court-title" class="h5">Ocupación por cancha</h3>
+        <p class="text-muted small">{{ ocupacion.horas_disponibles|floatformat:2 }} horas disponibles.
+            La capacidad usa los horarios activos actuales; no existe un historial de cambios para reconstruir capacidad pasada.</p>
+        <div class="table-responsive"><table class="table table-sm align-middle mb-0 court-table">
+            <thead><tr><th>Establecimiento</th><th>Cancha</th><th>Horas reservadas</th><th>Capacidad (h)</th><th>Ocupación</th></tr></thead>
+            <tbody>{% for fila in ocupacion.por_cancha %}<tr>
+                <td>{{ fila.cancha.venue.venue_name }}</td><td>{{ fila.cancha.court_name }}</td>
+                <td>{{ fila.horas_reservadas|floatformat:2 }}</td><td>{{ fila.horas_disponibles|floatformat:2 }}</td>
+                <td>{% if fila.ocupacion != None %}{{ fila.ocupacion|floatformat:2 }}%{% else %}N/D{% endif %}</td>
+            </tr>{% empty %}<tr><td colspan="5">No hay canchas para los filtros seleccionados.</td></tr>{% endfor %}</tbody>
+        </table></div>
+    </div></section>
+
+    <div class="row g-4 mb-4">
+        <div class="col-12 col-lg-6">
+            {% include 'reservations/dashboard_reservations.html' with title='Últimas reservas del período' reservas=ultimas_reservas %}
         </div>
-        <div class="col-6 col-md-3">
-            <div class="card border-success shadow-sm h-100">
-                <div class="card-body">
-                    <p class="text-muted mb-1">Confirmadas</p>
-                    <h4 class="mb-0">{{ confirmadas }}</h4>
-                </div>
-            </div>
-        </div>
-        <div class="col-6 col-md-3">
-            <div class="card shadow-sm h-100">
-                <div class="card-body">
-                    <p class="text-muted mb-1">Completadas</p>
-                    <h4 class="mb-0">{{ completadas }}</h4>
-                </div>
-            </div>
-        </div>
-        <div class="col-6 col-md-3">
-            <div class="card shadow-sm h-100">
-                <div class="card-body">
-                    <p class="text-muted mb-1">Canceladas</p>
-                    <h4 class="mb-0">{{ canceladas }}</h4>
-                </div>
-            </div>
+        <div class="col-12 col-lg-6">
+            {% include 'reservations/dashboard_reservations.html' with title='Próximas reservas del período' reservas=proximas_reservas %}
         </div>
     </div>
-
-    <div class="row g-4">
-        <div class="col-lg-6">
-            <div class="card shadow-sm h-100">
-                <div class="card-body">
-                    <h5 class="card-title">Agenda de hoy (máximo 8)</h5>
-
-                    {% if agenda_hoy %}
-                        <div class="table-responsive">
-                            <table class="table table-sm align-middle mb-0">
-                                <thead>
-                                    <tr>
-                                        <th>Hora</th>
-                                        <th>Cancha</th>
-                                        <th>Usuario</th>
-                                        <th>Estado</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {% for reserva in agenda_hoy %}
-                                        <tr>
-                                            <td>
-                                                {{ reserva.start_time|time:"H:i" }}
-                                                -
-                                                {{ reserva.end_time|time:"H:i" }}
-                                            </td>
-                                            <td>{{ reserva.court.court_name }}</td>
-                                            <td>{{ reserva.user.username }}</td>
-                                            <td>{{ reserva.get_reservation_status_display }}</td>
-                                        </tr>
-                                    {% endfor %}
-                                </tbody>
-                            </table>
-                        </div>
-                    {% else %}
-                        <p class="text-muted mb-0">
-                            No hay reservas vigentes para hoy.
-                        </p>
-                    {% endif %}
-                </div>
-            </div>
+    <details class="card card-body mb-4">
+        <summary>Detalle económico y operativo del contexto</summary>
+        <div class="row g-3 mt-1">
+            <div class="col-12 col-md-6"><p class="mb-1 text-muted">Valor de reservas válidas</p>
+                <strong>{% language "es-co" %}${{ dashboard_data.summary.reservation_value|floatformat:"2g" }}{% endlanguage %}</strong></div>
+            <div class="col-12 col-md-6"><p class="mb-1 text-muted">Pagos aprobados de reservas del período</p>
+                <strong>{% language "es-co" %}${{ ingresos_aprobados|floatformat:"2g" }}{% endlanguage %}</strong>
+                <small class="text-muted">({{ pagos_aprobados }} pagos; incluye abonos y saldos)</small></div>
+            <div class="col-12"><p class="text-muted mb-0">{{ total_establecimientos }} establecimientos activos · {{ total_canchas }} canchas activas · {{ reservas_hoy }} reservas de hoy dentro del período.</p></div>
         </div>
-
-        <div class="col-lg-6">
-            <div class="card shadow-sm h-100">
-                <div class="card-body">
-                    <h5 class="card-title">Próximas reservas (máximo 8)</h5>
-
-                    {% if proximas_reservas %}
-                        <div class="table-responsive">
-                            <table class="table table-sm align-middle mb-0">
-                                <thead>
-                                    <tr>
-                                        <th>Fecha</th>
-                                        <th>Cancha</th>
-                                        <th>Usuario</th>
-                                        <th>Estado</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {% for reserva in proximas_reservas %}
-                                        <tr>
-                                            <td>
-                                                {{ reserva.reservation_date|date:"d/m" }}
-                                                {{ reserva.start_time|time:"H:i" }}
-                                            </td>
-                                            <td>{{ reserva.court.court_name }}</td>
-                                            <td>{{ reserva.user.username }}</td>
-                                            <td>{{ reserva.get_reservation_status_display }}</td>
-                                        </tr>
-                                    {% endfor %}
-                                </tbody>
-                            </table>
-                        </div>
-                    {% else %}
-                        <p class="text-muted mb-0">
-                            No hay reservas próximas pendientes o confirmadas.
-                        </p>
-                    {% endif %}
-                </div>
-            </div>
-        </div>
-    </div>
-
+    </details>
+    {{ chart_data|json_script:"dashboard-chart-data" }}
+    {% endif %}
 </main>
 
+{{ form.court_options|json_script:"dashboard-courts" }}
+<script>
+    const venueSelect = document.getElementById('id_establecimiento');
+    const courtSelect = document.getElementById('id_cancha');
+    const courts = JSON.parse(document.getElementById('dashboard-courts').textContent);
+
+    venueSelect.addEventListener('change', () => {
+        const selectedCourt = courtSelect.value;
+        const availableCourts = courts.filter(court =>
+            !venueSelect.value || court.venue === venueSelect.value
+        );
+        courtSelect.replaceChildren(new Option('Todas las canchas', ''));
+        for (const court of availableCourts) {
+            courtSelect.add(new Option(court.label, court.id));
+        }
+        courtSelect.value = availableCourts.some(court => court.id === selectedCourt)
+            ? selectedCourt : '';
+    });
+</script>
+
+{% if filtros_validos %}
+<script src="{% static 'reservations/vendor/chart.umd.min.js' %}" defer></script>
+<script src="{% static 'reservations/dashboard.js' %}" defer></script>
+{% endif %}
 </body>
 </html>

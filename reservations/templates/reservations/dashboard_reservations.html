@@ -1,0 +1,12 @@
+<section class="card shadow-sm h-100"><div class="card-body">
+    <h3 class="h5">{{ title }}</h3>
+    <p class="text-muted small">Máximo 8 registros. Mismos filtros, incluido el rango de fechas.</p>
+    {% if reservas %}<div class="table-responsive"><table class="table table-sm align-middle mb-0 reservation-table">
+        <thead><tr><th>Fecha y hora</th><th>Cancha</th><th>Usuario</th><th>Estado</th></tr></thead>
+        <tbody>{% for reserva in reservas %}<tr>
+            <td>{{ reserva.reservation_date|date:"d/m/Y" }} {{ reserva.start_time|time:"H:i" }}</td>
+            <td>{{ reserva.court.venue.venue_name }} · {{ reserva.court.court_name }}</td>
+            <td>{{ reserva.user.username }}</td><td>{{ reserva.get_reservation_status_display }}</td>
+        </tr>{% endfor %}</tbody>
+    </table></div>{% else %}<p class="text-muted mb-0">No hay reservas para los filtros seleccionados.</p>{% endif %}
+</div></section>
