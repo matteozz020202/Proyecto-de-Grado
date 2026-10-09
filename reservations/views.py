@@ -586,7 +586,7 @@ def admin_crear_reserva(request):
                 )
 
                 return redirect(
-                    "reservations:admin_reservas"
+                    "reservations:admin_dashboard"
                 )
 
     return render(
@@ -610,7 +610,6 @@ def admin_crear_reserva(request):
 
 
 @login_required(login_url="users:login")
-@admin_required
 @admin_required
 def admin_reservas(request):
 
