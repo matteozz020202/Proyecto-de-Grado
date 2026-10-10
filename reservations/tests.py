@@ -399,6 +399,102 @@ class ReservationFlowTests(TestCase):
             "PENDING_PAYMENT"
         )
 
+    def test_booking_30_minutes_ahead_is_rejected(self):
+        fixed_now = timezone.make_aware(
+            datetime.combine(
+                self.reservation_date,
+                time(18, 0)
+            ),
+            timezone.get_current_timezone()
+        )
+
+        with patch(
+            "reservations.services.timezone.now",
+            return_value=fixed_now
+        ):
+            with self.assertRaises(ValidationError):
+                create_pending_reservation(
+                    user=self.user,
+                    court=self.court,
+                    reservation_date=self.reservation_date,
+                    start_time=time(18, 30),
+                    end_time=time(19, 30)
+                )
+
+    def test_booking_59_minutes_ahead_is_rejected(self):
+        fixed_now = timezone.make_aware(
+            datetime.combine(
+                self.reservation_date,
+                time(18, 0)
+            ),
+            timezone.get_current_timezone()
+        )
+
+        with patch(
+            "reservations.services.timezone.now",
+            return_value=fixed_now
+        ):
+            with self.assertRaises(ValidationError):
+                create_pending_reservation(
+                    user=self.user,
+                    court=self.court,
+                    reservation_date=self.reservation_date,
+                    start_time=time(18, 59),
+                    end_time=time(19, 59)
+                )
+
+    def test_booking_exactly_one_hour_ahead_is_allowed(self):
+        fixed_now = timezone.make_aware(
+            datetime.combine(
+                self.reservation_date,
+                time(18, 0)
+            ),
+            timezone.get_current_timezone()
+        )
+
+        with patch(
+            "reservations.services.timezone.now",
+            return_value=fixed_now
+        ):
+            reservation = create_pending_reservation(
+                user=self.user,
+                court=self.court,
+                reservation_date=self.reservation_date,
+                start_time=time(19, 0),
+                end_time=time(20, 0)
+            )
+
+        self.assertEqual(
+            reservation.reservation_status,
+            "PENDING_PAYMENT"
+        )
+
+    def test_booking_two_hours_ahead_is_allowed(self):
+        fixed_now = timezone.make_aware(
+            datetime.combine(
+                self.reservation_date,
+                time(18, 0)
+            ),
+            timezone.get_current_timezone()
+        )
+
+        with patch(
+            "reservations.services.timezone.now",
+            return_value=fixed_now
+        ):
+            reservation = create_pending_reservation(
+                user=self.user,
+                court=self.court,
+                reservation_date=self.reservation_date,
+                start_time=time(20, 0),
+                end_time=time(21, 0)
+            )
+
+        self.assertEqual(
+            reservation.reservation_status,
+            "PENDING_PAYMENT"
+        )
+
 
 class AdminDashboardTests(TestCase):
     def setUp(self):

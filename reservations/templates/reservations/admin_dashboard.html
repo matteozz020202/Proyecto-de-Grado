@@ -15,7 +15,7 @@
         .kpi-value { font-size: clamp(1.2rem, 1.6vw, 1.8rem); overflow-wrap: anywhere; }
         .kpi-money { font-size: clamp(0.9rem, 1.3vw, 1.4rem); }
         .court-table { min-width: 640px; }
-        .reservation-table { min-width: 650px; }
+        .reservation-table { min-width: 1250px; }
         .chart-card { height: 100%; }
         @media (max-width: 575px) { .chart-frame { height: 240px; } }
     </style>
@@ -114,38 +114,198 @@
             {% endif %}
             Pendientes, canceladas y expiradas no suman ocupación.
         </p>
-        <div class="row row-cols-2 row-cols-lg-5 g-3">
-            <div class="col"><div class="card shadow-sm h-100"><div class="card-body">
-                <p class="text-muted mb-1">Ocupación</p>
-                <strong class="kpi-value">{% if ocupacion.ocupacion != None %}{{ ocupacion.ocupacion|floatformat:2 }}%{% else %}N/D{% endif %}</strong>
-            </div></div></div>
-            <div class="col"><div class="card shadow-sm h-100"><div class="card-body">
-                <p class="text-muted mb-1">Reservas válidas</p>
-                <strong class="kpi-value">{{ ocupacion.reservas_validas }}</strong>
-            </div></div></div>
-            <div class="col"><div class="card shadow-sm h-100"><div class="card-body">
-                <p class="text-muted mb-1">Horas reservadas</p>
-                <strong class="kpi-value">{{ ocupacion.horas_reservadas|floatformat:2 }}</strong>
-            </div></div></div>
-            <div class="col"><div class="card shadow-sm h-100"><div class="card-body">
-                <p class="text-muted mb-1">Abonos aprobados</p>
-                <strong class="kpi-value kpi-money">{% language "es-co" %}${{ dashboard_data.summary.approved_deposits|floatformat:"2g" }}{% endlanguage %}</strong>
-            </div></div></div>
-            <div class="col"><div class="card shadow-sm h-100"><div class="card-body">
-                <p class="text-muted mb-1">Cancelación</p>
-                <strong class="kpi-value">{% if dashboard_data.summary.cancellation_rate != None %}{{ dashboard_data.summary.cancellation_rate|floatformat:2 }}%{% else %}N/D{% endif %}</strong>
-            </div></div></div>
+
+        <div class="row row-cols-1 row-cols-md-2 row-cols-lg-4 g-3">
+
+            <div class="col">
+                <div class="card shadow-sm h-100">
+                    <div class="card-body">
+                        <p class="text-muted mb-1">Ocupación</p>
+                        <strong class="kpi-value">
+                            {% if ocupacion.ocupacion != None %}
+                                {{ ocupacion.ocupacion|floatformat:2 }}%
+                            {% else %}
+                                N/D
+                            {% endif %}
+                        </strong>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col">
+                <div class="card shadow-sm h-100">
+                    <div class="card-body">
+                        <p class="text-muted mb-1">Reservas válidas</p>
+                        <strong class="kpi-value">
+                            {{ dashboard_data.summary.valid_reservations }}
+                        </strong>
+                        <small class="text-muted d-block">
+                            Confirmadas + completadas
+                        </small>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col">
+                <div class="card shadow-sm h-100">
+                    <div class="card-body">
+                        <p class="text-muted mb-1">Horas reservadas</p>
+                        <strong class="kpi-value">
+                            {{ ocupacion.horas_reservadas|floatformat:2 }}
+                        </strong>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col">
+                <div class="card shadow-sm h-100">
+                    <div class="card-body">
+                        <p class="text-muted mb-1">Valor de reservas</p>
+                        <strong class="kpi-value kpi-money">
+                            {% language "es-co" %}
+                                ${{ dashboard_data.summary.reservation_value|floatformat:"2g" }}
+                            {% endlanguage %}
+                        </strong>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col">
+                <div class="card shadow-sm h-100">
+                    <div class="card-body">
+                        <p class="text-muted mb-1">Abonos aprobados</p>
+                        <strong class="kpi-value kpi-money">
+                            {% language "es-co" %}
+                                ${{ dashboard_data.summary.approved_deposits|floatformat:"2g" }}
+                            {% endlanguage %}
+                        </strong>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col">
+                <div class="card shadow-sm h-100">
+                    <div class="card-body">
+                        <p class="text-muted mb-1">Saldo pendiente</p>
+                        <strong class="kpi-value kpi-money">
+                            {% language "es-co" %}
+                                ${{ dashboard_data.summary.pending_balance|floatformat:"2g" }}
+                            {% endlanguage %}
+                        </strong>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col">
+                <div class="card shadow-sm h-100">
+                    <div class="card-body">
+                        <p class="text-muted mb-1">Cancelación</p>
+                        <strong class="kpi-value">
+                            {% if dashboard_data.summary.cancellation_rate != None %}
+                                {{ dashboard_data.summary.cancellation_rate|floatformat:2 }}%
+                            {% else %}
+                                N/D
+                            {% endif %}
+                        </strong>
+                    </div>
+                </div>
+            </div>
+
         </div>
         <p class="small text-muted mt-2 mb-0">
-            Cancelación = canceladas / (confirmadas + completadas + canceladas).
-            Abonos incluye solo pagos de tipo abono aprobados del contexto seleccionado.
+            Las reservas válidas para indicadores generales corresponden a
+            CONFIRMED y COMPLETED.
+            La ocupación conserva la semántica del análisis seleccionado:
+            histórico usa reservas completadas y programado usa confirmadas.
+            El saldo pendiente se obtiene del valor de las reservas válidas
+            menos sus pagos aprobados.
         </p>
+    </section>
+    <section class="card shadow-sm mb-4">
+        <div class="card-body">
+
+            <h3 class="h5 mb-3">
+                Patrones de ocupación
+            </h3>
+
+            <div class="row g-3">
+
+                <div class="col-12 col-md-6 col-lg-3">
+                    <p class="text-muted mb-1">
+                        Día más ocupado
+                    </p>
+
+                    {% if dashboard_data.summary.busiest_day %}
+                        <strong>
+                            {{ dashboard_data.summary.busiest_day.label }}
+                        </strong>
+                        <div class="small text-muted">
+                            {{ dashboard_data.summary.busiest_day.occupancy_rate|floatformat:2 }}%
+                        </div>
+                    {% else %}
+                        <strong>N/D</strong>
+                    {% endif %}
+                </div>
+
+                <div class="col-12 col-md-6 col-lg-3">
+                    <p class="text-muted mb-1">
+                        Día menos ocupado
+                    </p>
+
+                    {% if dashboard_data.summary.least_busy_day %}
+                        <strong>
+                            {{ dashboard_data.summary.least_busy_day.label }}
+                        </strong>
+                        <div class="small text-muted">
+                            {{ dashboard_data.summary.least_busy_day.occupancy_rate|floatformat:2 }}%
+                        </div>
+                    {% else %}
+                        <strong>N/D</strong>
+                    {% endif %}
+                </div>
+
+                <div class="col-12 col-md-6 col-lg-3">
+                    <p class="text-muted mb-1">
+                        Franja más ocupada
+                    </p>
+
+                    {% if dashboard_data.summary.busiest_time_slot %}
+                        <strong>
+                            {{ dashboard_data.summary.busiest_time_slot.label }}
+                        </strong>
+                        <div class="small text-muted">
+                            {{ dashboard_data.summary.busiest_time_slot.occupancy_rate|floatformat:2 }}%
+                        </div>
+                    {% else %}
+                        <strong>N/D</strong>
+                    {% endif %}
+                </div>
+
+                <div class="col-12 col-md-6 col-lg-3">
+                    <p class="text-muted mb-1">
+                        Franja menos ocupada
+                    </p>
+
+                    {% if dashboard_data.summary.least_busy_time_slot %}
+                        <strong>
+                            {{ dashboard_data.summary.least_busy_time_slot.label }}
+                        </strong>
+                        <div class="small text-muted">
+                            {{ dashboard_data.summary.least_busy_time_slot.occupancy_rate|floatformat:2 }}%
+                        </div>
+                    {% else %}
+                        <strong>N/D</strong>
+                    {% endif %}
+                </div>
+
+            </div>
+
+        </div>
     </section>
     {% if ocupacion.capacidad_inconsistente %}
         <div class="alert alert-warning">Hay más horas reservadas que capacidad configurada en alguna cancha o franja.
             Revisa los horarios. Los porcentajes originales se conservan en el detalle.</div>
     {% endif %}
-
     <div class="row g-4 mb-4">
         <div class="col-12 col-lg-6">
             {% include 'reservations/dashboard_chart.html' with title='Ocupación por día de la semana' chart_id='occupancy-day' rows=chart_data.occupancy_by_day %}
@@ -192,14 +352,8 @@
         </table></div>
     </div></section>
 
-    <div class="row g-4 mb-4">
-        <div class="col-12 col-lg-6">
-            {% include 'reservations/dashboard_reservations.html' with title='Últimas reservas del período' reservas=ultimas_reservas %}
-        </div>
-        <div class="col-12 col-lg-6">
-            {% include 'reservations/dashboard_reservations.html' with title='Próximas reservas del período' reservas=proximas_reservas %}
-        </div>
-    </div>
+    {% include 'reservations/dashboard_reservations.html' with title='Reservas del período' reservas=pagina_reservas %}
+
     <details class="card card-body mb-4">
         <summary>Detalle económico y operativo del contexto</summary>
         <div class="row g-3 mt-1">

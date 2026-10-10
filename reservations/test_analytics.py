@@ -32,7 +32,8 @@ class AnalyticsTests(TestCase):
         return Reservation.objects.create(user=self.user, court=court or self.court,
                                           reservation_date=day or self.day,
                                           start_time=time(start), end_time=time(end),
-                                          total_amount=120000, reservation_status=status, data_source=source)
+                                          total_amount=120000, deposit_required=Decimal("36000.00"),
+                                          remaining_amount=Decimal("84000.00"), reservation_status=status, data_source=source)
 
     def metric(self, kind="HISTORICAL", start=None, end=None):
         return occupancy(Court.objects.select_related("venue"), Reservation.objects.all(),
@@ -231,7 +232,7 @@ class AnalyticsTests(TestCase):
         self.assertEqual(data["summary"]["cancellation_rate"], Decimal(100) / 3)
         self.assertEqual(data["summary"]["approved_deposits"], Decimal(36000))
         self.assertEqual(data["approved_payments"], Decimal(120000))
-        self.assertEqual(data["summary"]["reservation_value"], Decimal(120000))
+        self.assertEqual(data["summary"]["reservation_value"], Decimal(240000))
         self.assertEqual(len(data["reservation_status_distribution"]), 5)
 
     def test_empty_data_preserves_nulls_and_synthetic_notice(self):
@@ -264,3 +265,99 @@ class AnalyticsTests(TestCase):
         self.assertEqual([row["label"] for row in slots], ['12:00–13:00', '13:00–14:00', '14:00–15:00', '15:00–16:00'])
         self.assertEqual([row["occupancy_rate"] for row in slots], [Decimal(100), Decimal(0), Decimal(0), Decimal(0)])
         self.assertEqual(result["occupancy_by_day"][6]["occupancy_rate"], Decimal(25))
+
+
+    def test_summary_uses_valid_reservations_real_payments_and_extremes(self):
+        self.schedule(
+            start=8,
+            end=10,
+            day=1,
+        )
+
+        self.schedule(
+            start=8,
+            end=10,
+            day=2,
+        )
+
+        completed = self.reserve(
+            start=8,
+            end=9,
+            status="COMPLETED",
+            day=self.day,
+        )
+
+        confirmed = self.reserve(
+            start=8,
+            end=9,
+            status="CONFIRMED",
+            day=self.day + timedelta(days=1),
+        )
+
+        Payment.objects.create(
+            reservation=completed,
+            amount=completed.deposit_required,
+            payment_type="DEPOSIT",
+            payment_status="APPROVED",
+            transaction_reference="deposit-summary",
+        )
+
+        Payment.objects.create(
+            reservation=completed,
+            amount=completed.remaining_amount,
+            payment_type="BALANCE",
+            payment_status="APPROVED",
+            transaction_reference="balance-summary",
+        )
+
+        data = dashboard_data(
+            Court.objects.select_related("venue"),
+            Reservation.objects.all(),
+            self.day,
+            self.day + timedelta(days=1),
+            "HISTORICAL",
+            "SYNTHETIC",
+        )
+
+        summary = data["summary"]
+
+        # CONFIRMED + COMPLETED are valid for general KPIs.
+        self.assertEqual(
+            summary["valid_reservations"],
+            2,
+        )
+
+        self.assertEqual(
+            summary["reservation_value"],
+            completed.total_amount
+            + confirmed.total_amount,
+        )
+
+        # Completed reservation was fully paid.
+        # Confirmed reservation has no payment,
+        # therefore its full value remains pending.
+        self.assertEqual(
+            summary["pending_balance"],
+            confirmed.total_amount,
+        )
+
+        # Historical occupancy still only uses COMPLETED.
+        self.assertEqual(
+            data["occupancy"]["reservas_validas"],
+            1,
+        )
+
+        self.assertEqual(
+            summary["busiest_day"]["label"],
+            "Lun",
+        )
+
+        self.assertEqual(
+            summary["least_busy_day"]["label"],
+            "Mar",
+        )
+
+        self.assertGreater(
+            summary["busiest_time_slot"]["occupancy_rate"],
+            summary["least_busy_time_slot"]["occupancy_rate"],
+        )

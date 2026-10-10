@@ -18,6 +18,30 @@ BLOCKING_RESERVATION_STATUSES = [
 
 HOLD_MINUTES = 15
 
+MIN_BOOKING_ADVANCE_HOURS = 1
+
+def get_reservation_datetime(reservation_date, start_time):
+    tz = timezone.get_current_timezone()
+    return timezone.make_aware(
+        datetime.combine(reservation_date, start_time),
+        tz
+    )
+
+def validate_minimum_booking_advance(reservation_date, start_time):
+    reservation_datetime = get_reservation_datetime(
+        reservation_date,
+        start_time
+    )
+    minimum_datetime = (
+        timezone.localtime(timezone.now())
+        + timedelta(hours=MIN_BOOKING_ADVANCE_HOURS)
+    )
+
+    if reservation_datetime < minimum_datetime:
+        raise ValidationError(
+            "La reserva debe realizarse con mínimo "
+            "1 hora de anticipación."
+        )
 
 def expire_pending_reservations():
     """
@@ -72,6 +96,11 @@ def get_availability(
 
     available_slots = []
 
+    minimum_datetime = (
+        timezone.localtime(timezone.now())
+        + timedelta(hours=MIN_BOOKING_ADVANCE_HOURS)
+    )
+
     for schedule in schedules:
 
         slot_minutes = (
@@ -100,6 +129,14 @@ def get_availability(
                 + timedelta(minutes=slot_minutes)
             )
 
+            slot_datetime = get_reservation_datetime(
+                reservation_date,
+                current_start.time()
+            )
+
+            if slot_datetime < minimum_datetime:
+                current_start = current_end
+                continue
             conflict_exists = reservations.filter(
                 start_time__lt=current_end.time(),
                 end_time__gt=current_start.time()
@@ -213,6 +250,11 @@ def create_pending_reservation(
 
     # Expire reservations whose hold already ended.
     expire_pending_reservations()
+
+    validate_minimum_booking_advance(
+        reservation_date,
+        start_time
+    )
 
     if start_time >= end_time:
         raise ValidationError(

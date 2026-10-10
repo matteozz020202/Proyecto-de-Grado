@@ -908,6 +908,13 @@ def admin_dashboard(request):
     analytics = dashboard_data(courts, reservations, start_date, end_date, filters["tipo"], data_source)
     status_counts = analytics["status_counts"]
 
+    table_reservations = reservations.select_related("user", "court", "court__venue").order_by("-reservation_date", "-start_time", "-pk")
+    paginator = Paginator(table_reservations, 25)
+    reservation_page = paginator.get_page(request.GET.get("page"))
+    params = request.GET.copy()
+    if "page" in params:
+        params.pop("page")
+
     upcoming = (
         reservations.filter(
             reservation_status__in=[
@@ -961,6 +968,8 @@ def admin_dashboard(request):
         "datos_sinteticos": data_source == "SYNTHETIC" or reservations.filter(data_source="SYNTHETIC").exists(),
         "origen": data_source,
         "origenes": Reservation.DATA_SOURCES,
+        "pagina_reservas": reservation_page,
+        "querystring": params.urlencode(),
         "total_establecimientos": Venue.objects.filter(
             pk__in=courts.values("venue_id"), is_active=True,
         ).count(),
@@ -1004,4 +1013,19 @@ def admin_dashboard(request):
         request,
         "reservations/admin_dashboard.html",
         context
+    )
+
+@admin_required
+def admin_detalle_reserva(request, reserva_id):
+    reservation = get_object_or_404(
+        Reservation.objects
+        .select_related("user", "court", "court__venue")
+        .prefetch_related("payments"),
+        reservation_id=reserva_id
+    )
+
+    return render(
+        request,
+        "reservations/admin_detalle_reserva.html",
+        {"reserva": reservation}
     )

@@ -8,6 +8,10 @@ from django.utils import timezone
 from courts.models import CourtSchedule
 from .models import Payment, Reservation
 
+VALID_RESERVATION_STATUSES = (
+    "CONFIRMED",
+    "COMPLETED",
+)
 
 def seconds(value):
     return value.hour * 3600 + value.minute * 60 + value.second
@@ -38,6 +42,29 @@ def add_hourly(buckets, start, end):
 def ratio(reserved, available):
     return Decimal(reserved) * 100 / available if available else None
 
+def occupancy_extreme(rows, highest=True):
+    """
+    Returns the row with the highest or lowest occupancy.
+
+    Rows without configured capacity have occupancy_rate=None
+    and are ignored.
+    """
+
+    candidates = [
+        row
+        for row in rows
+        if row["occupancy_rate"] is not None
+    ]
+
+    if not candidates:
+        return None
+
+    selector = max if highest else min
+
+    return selector(
+        candidates,
+        key=lambda row: row["occupancy_rate"],
+    )
 
 def occupancy(courts, reservations, start_date, end_date, analysis_type):
     status = {"HISTORICAL": "COMPLETED", "FUTURE": "CONFIRMED"}[analysis_type]
@@ -116,46 +143,236 @@ def occupancy(courts, reservations, start_date, end_date, analysis_type):
     }
 
 
-def dashboard_data(courts, reservations, start_date, end_date, analysis_type, source):
-    """Un solo alcance para KPIs, gráficas y el futuro contrato de análisis GPT."""
-    metrics = occupancy(courts, reservations, start_date, end_date, analysis_type)
-    counts = dict(reservations.order_by().values_list("reservation_status").annotate(total=Count("pk")))
-    formalized = sum(counts.get(status, 0) for status in ("CONFIRMED", "COMPLETED", "CANCELLED"))
-    payments = Payment.objects.filter(payment_status="APPROVED", reservation__in=reservations)
-    deposits = payments.filter(payment_type="DEPOSIT")
-    valid = reservations.filter(reservation_status=metrics["estado_ocupacion"])
-    # En el programado de hoy, la reserva es válida si aún tiene horas pendientes.
-    if analysis_type == "FUTURE":
-        now = timezone.localtime()
-        valid = valid.filter(Q(reservation_date__gt=now.date()) |
-                             Q(reservation_date=now.date(), end_time__gt=now.time()))
-    distribution = [{"status": status, "label": label, "count": counts[status]}
-                    for status, label in Reservation.RESERVATION_STATUSES if counts.get(status)]
-    summary = {
-        "occupancy_rate": metrics["ocupacion"], "valid_reservations": metrics["reservas_validas"],
-        "reserved_hours": metrics["horas_reservadas"], "available_hours": metrics["horas_disponibles"],
-        "reservation_value": valid.aggregate(total=Sum("total_amount"))["total"] or Decimal(0),
-        "approved_deposits": deposits.aggregate(total=Sum("amount"))["total"] or Decimal(0),
-        "cancellation_rate": ratio(counts.get("CANCELLED", 0), formalized),
-    }
+def dashboard_data(
+    courts,
+    reservations,
+    start_date,
+    end_date,
+    analysis_type,
+    source,
+):
+    """
+    Single source of truth for dashboard KPIs,
+    charts and future administrative AI analysis.
+    """
+
+    metrics = occupancy(
+        courts,
+        reservations,
+        start_date,
+        end_date,
+        analysis_type,
+    )
+
+    counts = dict(
+        reservations
+        .order_by()
+        .values_list("reservation_status")
+        .annotate(total=Count("pk"))
+    )
+
+    # -------------------------------------------------
+    # Cancellation rate
+    # -------------------------------------------------
+
+    formalized = sum(
+        counts.get(status, 0)
+        for status in (
+            "CONFIRMED",
+            "COMPLETED",
+            "CANCELLED",
+        )
+    )
+
+    cancellation_rate = ratio(
+        counts.get("CANCELLED", 0),
+        formalized,
+    )
+
+    # -------------------------------------------------
+    # Official valid reservations
+    # CONFIRMED + COMPLETED
+    # -------------------------------------------------
+
+    valid_reservations = reservations.filter(
+        reservation_status__in=VALID_RESERVATION_STATUSES
+    )
+
+    valid_reservation_count = (
+        valid_reservations.count()
+    )
+
+    reservation_value = (
+        valid_reservations.aggregate(
+            total=Sum("total_amount")
+        )["total"]
+        or Decimal("0")
+    )
+
+    # -------------------------------------------------
+    # Approved payments
+    # -------------------------------------------------
+
+    # Operational total: all approved payments in
+    # the filtered reservation context.
+    all_approved_payments = Payment.objects.filter(
+        payment_status="APPROVED",
+        reservation__in=reservations,
+    )
+
+    # Financial KPIs for valid reservations only.
+    valid_approved_payments = Payment.objects.filter(
+        payment_status="APPROVED",
+        reservation__in=valid_reservations,
+    )
+
+    approved_deposits = (
+        valid_approved_payments
+        .filter(payment_type="DEPOSIT")
+        .aggregate(total=Sum("amount"))["total"]
+        or Decimal("0")
+    )
+
+    approved_valid_total = (
+        valid_approved_payments
+        .aggregate(total=Sum("amount"))["total"]
+        or Decimal("0")
+    )
+
+    # Outstanding amount is derived from real approved
+    # payments instead of Reservation.remaining_amount.
+    pending_balance = (
+        reservation_value
+        - approved_valid_total
+    )
+
+    if pending_balance < 0:
+        pending_balance = Decimal("0")
+
+    # -------------------------------------------------
+    # Occupancy extremes
+    # -------------------------------------------------
+
+    busiest_day = occupancy_extreme(
+        metrics["occupancy_by_day"],
+        highest=True,
+    )
+
+    least_busy_day = occupancy_extreme(
+        metrics["occupancy_by_day"],
+        highest=False,
+    )
+
+    busiest_time_slot = occupancy_extreme(
+        metrics["occupancy_by_time_slot"],
+        highest=True,
+    )
+
+    least_busy_time_slot = occupancy_extreme(
+        metrics["occupancy_by_time_slot"],
+        highest=False,
+    )
+
+    # -------------------------------------------------
+    # Reservation status distribution
+    # -------------------------------------------------
+
+    distribution = [
+        {
+            "status": status,
+            "label": label,
+            "count": counts[status],
+        }
+        for status, label
+        in Reservation.RESERVATION_STATUSES
+        if counts.get(status)
+    ]
+
+    # -------------------------------------------------
+    # Chart serialization helper
+    # -------------------------------------------------
+
     def chart_rows(rows):
-        return [{key: float(value) if isinstance(value, Decimal) else value
-                 for key, value in row.items()} for row in rows]
+        return [
+            {
+                key: (
+                    float(value)
+                    if isinstance(value, Decimal)
+                    else value
+                )
+                for key, value in row.items()
+            }
+            for row in rows
+        ]
+
+    # -------------------------------------------------
+    # Summary
+    # -------------------------------------------------
+
+    summary = {
+        "occupancy_rate": metrics["ocupacion"],
+
+        # Official valid reservations
+        "valid_reservations": valid_reservation_count,
+
+        "reserved_hours": metrics["horas_reservadas"],
+        "available_hours": metrics["horas_disponibles"],
+
+        "reservation_value": reservation_value,
+        "approved_deposits": approved_deposits,
+        "pending_balance": pending_balance,
+
+        "cancellation_rate": cancellation_rate,
+
+        "busiest_day": busiest_day,
+        "least_busy_day": least_busy_day,
+        "busiest_time_slot": busiest_time_slot,
+        "least_busy_time_slot": least_busy_time_slot,
+    }
 
     return {
-        "summary": summary, "occupancy": metrics, "status_counts": counts,
+        "summary": summary,
+
+        "occupancy": metrics,
+
+        "status_counts": counts,
+
         "reservation_status_distribution": distribution,
-        "approved_payments": payments.aggregate(total=Sum("amount"))["total"] or Decimal(0),
-        "approved_payment_count": payments.count(),
+
+        "approved_payments": (
+            all_approved_payments
+            .aggregate(total=Sum("amount"))["total"]
+            or Decimal("0")
+        ),
+
+        "approved_payment_count": (
+            all_approved_payments.count()
+        ),
+
         "analysis_context": {
-            "venue_ids": sorted({court.venue_id for court in courts}),
-            "court_ids": sorted(court.pk for court in courts),
-            "start_date": start_date.isoformat(), "end_date": end_date.isoformat(),
-            "analysis_type": analysis_type, "data_source": source,
+            "venue_ids": sorted(
+                {
+                    court.venue_id
+                    for court in courts
+                }
+            ),
+            "court_ids": sorted(
+                court.pk
+                for court in courts
+            ),
+            "start_date": start_date.isoformat(),
+            "end_date": end_date.isoformat(),
+            "analysis_type": analysis_type,
+            "data_source": source,
         },
+
         "chart_data": {
-            "occupancy_by_day": chart_rows(metrics["occupancy_by_day"]),
-            "occupancy_by_time_slot": chart_rows(metrics["occupancy_by_time_slot"]),
+            "occupancy_by_day": chart_rows(
+                metrics["occupancy_by_day"]
+            ),
+            "occupancy_by_time_slot": chart_rows(
+                metrics["occupancy_by_time_slot"]
+            ),
             "reservation_status_distribution": distribution,
         },
     }

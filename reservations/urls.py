@@ -42,4 +42,9 @@ urlpatterns = [
         views.admin_dashboard,
         name="admin_dashboard"
     ),
+    path(
+    "admin/reservas/<int:reserva_id>/",
+    views.admin_detalle_reserva,
+    name="admin_detalle_reserva"
+    ),
 ]
