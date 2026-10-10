@@ -170,7 +170,10 @@ class AnalyticsTests(TestCase):
             {"status": "COMPLETED", "label": "Completada", "count": 1},
         ])
         self.assertEqual(response.context["dashboard_data"]["analysis_context"]["court_ids"], [self.court.pk])
-        self.assertEqual(list(response.context["ultimas_reservas"]), [chosen])
+        self.assertEqual(
+            list(response.context["pagina_reservas"]),
+            [chosen]
+        )
         self.assertContains(response, 'id="dashboard-chart-data"')
 
     def test_court_choices_are_scoped_to_venue_and_reject_foreign_courts(self):

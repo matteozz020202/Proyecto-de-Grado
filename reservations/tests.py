@@ -534,24 +534,28 @@ class AdminDashboardTests(TestCase):
         self.user.save()
         self.assertEqual(self.client.get(self.url).status_code, 200)
 
-    def test_upcoming_excludes_past_times_and_inactive_states(self):
-        self.reservation(hour=10)
-        self.reservation(hour=11)
+    def test_main_table_contains_reservations_in_selected_period(self):
+        at_10 = self.reservation(hour=10)
+        at_11 = self.reservation(hour=11)
         at_now = self.reservation(hour=12)
         future = self.reservation(hour=13)
         tomorrow = self.reservation(hour=8, days=1)
-        self.reservation(hour=14, status="CANCELLED")
-        self.reservation(hour=15, status="COMPLETED")
+        cancelled = self.reservation(hour=14, status="CANCELLED")
+        completed = self.reservation(hour=15, status="COMPLETED")
+
         response = self.client.get(self.url, {
-            "tipo": "FUTURE", "fecha_inicio": self.now.date().isoformat(),
+            "tipo": "FUTURE",
+            "fecha_inicio": self.now.date().isoformat(),
             "fecha_fin": (self.now.date() + timedelta(days=1)).isoformat(),
         })
-        self.assertEqual(list(response.context["proximas_reservas"]),
-                         [at_now, future, tomorrow])
-        self.assertEqual(response.context["reservas_hoy"], 5)
-        self.assertEqual(len(response.context["agenda_hoy"]), 5)
 
-    def test_source_filter_applies_to_counts_agenda_and_payments(self):
+        self.assertEqual(
+            list(response.context["pagina_reservas"]),
+            [tomorrow, completed, cancelled, future, at_now, at_11, at_10]
+        )
+        self.assertEqual(response.context["reservas_hoy"], 5)
+
+    def test_source_filter_applies_to_counts_table_and_payments(self):
         system = self.reservation()
         synthetic = self.reservation(hour=14, source="SYNTHETIC")
         for reservation, amount, status, ref in [
@@ -564,7 +568,7 @@ class AdminDashboardTests(TestCase):
         for source, count, income, expected in [
             (None, 1, 36000, [system]),
             ("SYNTHETIC", 1, 72000, [synthetic]),
-            ("ALL", 2, 108000, [system, synthetic]),
+            ("ALL", 2, 108000, [synthetic, system]),
             ("invalid", 1, 36000, [system]),
         ]:
             with self.subTest(source=source):
@@ -573,8 +577,10 @@ class AdminDashboardTests(TestCase):
                 self.assertEqual(response.context["reservas_hoy"], count)
                 self.assertEqual(response.context["ingresos_aprobados"], Decimal(income))
                 self.assertEqual(response.context["pagos_aprobados"], count)
-                self.assertEqual(list(response.context["agenda_hoy"]), expected)
-                self.assertEqual(list(response.context["proximas_reservas"]), expected)
+                self.assertEqual(
+                    list(response.context["pagina_reservas"]),
+                    expected
+                )
 
     def test_expired_holds_are_not_counted_as_pending(self):
         expired = self.reservation(status="PENDING_PAYMENT",
@@ -595,9 +601,20 @@ class AdminDashboardTests(TestCase):
         home = self.client.get(reverse("users:home"))
         self.assertContains(home, self.url)
 
-    def test_agendas_show_first_eight_in_chronological_order(self):
-        reservations = [self.reservation(hour=hour) for hour in range(13, 23)]
+    def test_main_table_is_not_limited_to_eight_reservations(self):
+        reservations = [
+            self.reservation(hour=hour)
+            for hour in range(13, 23)
+        ]
+
         response = self.client.get(self.url)
+
         self.assertEqual(response.context["reservas_hoy"], 10)
-        self.assertEqual(list(response.context["agenda_hoy"]), reservations[:8])
-        self.assertEqual(list(response.context["proximas_reservas"]), reservations[:8])
+        self.assertEqual(
+            response.context["pagina_reservas"].paginator.count,
+            10
+        )
+        self.assertEqual(
+            list(response.context["pagina_reservas"]),
+            list(reversed(reservations))
+        )
