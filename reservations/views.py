@@ -1,22 +1,14 @@
-from datetime import date, datetime
+from datetime import datetime
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
 from django.core.paginator import Paginator
-from django.db.models import Q
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 from django.contrib.auth import get_user_model
-
-from django.db.models import Min, Max
-from .kpis import (
-    get_court_occupancy,
-    get_summary_kpis,
-    get_cancellation_kpis,
-)
 
 from courts.models import Court, Venue
 from users.decorators import admin_required
@@ -586,7 +578,7 @@ def admin_crear_reserva(request):
                 )
 
                 return redirect(
-                    "reservations:admin_reservas"
+                    "reservations:admin_dashboard"
                 )
 
     return render(
@@ -607,279 +599,6 @@ def admin_crear_reserva(request):
             ),
         }
     )
-
-
-@login_required(login_url="users:login")
-@admin_required
-@admin_required
-def admin_reservas(request):
-
-    reservations = (
-        Reservation.objects
-        .select_related(
-            "user",
-            "court",
-            "court__venue"
-        )
-        .order_by(
-            "-reservation_date",
-            "-start_time"
-        )
-    )
-
-    # ---------------------------------
-    # Parámetros de filtros
-    # ---------------------------------
-
-    start_date_filter = request.GET.get(
-        "fecha_desde",
-        ""
-    )
-
-    end_date_filter = request.GET.get(
-        "fecha_hasta",
-        ""
-    )
-
-    court_id = request.GET.get(
-        "cancha",
-        ""
-    )
-
-    status = request.GET.get(
-        "estado",
-        ""
-    )
-
-    # Fechas ya convertidas para reutilizarlas en KPIs
-    parsed_start_date = None
-    parsed_end_date = None
-
-    # ---------------------------------
-    # Filtro fecha desde
-    # ---------------------------------
-
-    if start_date_filter:
-        try:
-            parsed_start_date = date.fromisoformat(
-                start_date_filter
-            )
-
-            reservations = reservations.filter(
-                reservation_date__gte=parsed_start_date
-            )
-
-        except ValueError:
-            messages.warning(
-                request,
-                "La fecha inicial no es válida."
-            )
-
-    # ---------------------------------
-    # Filtro fecha hasta
-    # ---------------------------------
-
-    if end_date_filter:
-        try:
-            parsed_end_date = date.fromisoformat(
-                end_date_filter
-            )
-
-            reservations = reservations.filter(
-                reservation_date__lte=parsed_end_date
-            )
-
-        except ValueError:
-            messages.warning(
-                request,
-                "La fecha final no es válida."
-            )
-
-    # ---------------------------------
-    # Filtro cancha
-    # ---------------------------------
-
-    if court_id:
-        reservations = reservations.filter(
-            court_id=court_id
-        )
-
-    # ---------------------------------
-    # Filtro estado
-    # ---------------------------------
-
-    valid_statuses = [
-        value
-        for value, label
-        in Reservation._meta
-        .get_field(
-            "reservation_status"
-        )
-        .choices
-    ]
-
-    if (
-        status
-        and status in valid_statuses
-    ):
-        reservations = reservations.filter(
-            reservation_status=status
-        )
-
-    # ---------------------------------
-    # Catálogos para filtros
-    # ---------------------------------
-
-    courts = (
-        Court.objects
-        .select_related(
-            "venue"
-        )
-        .filter(
-            is_active=True
-        )
-        .order_by(
-            "venue__venue_name",
-            "court_name"
-        )
-    )
-
-    statuses = (
-        Reservation._meta
-        .get_field(
-            "reservation_status"
-        )
-        .choices
-    )
-
-    # ---------------------------------
-    # Rango para KPIs
-    # ---------------------------------
-
-    kpi_base_queryset = Reservation.objects.all()
-
-    # Si se selecciona una cancha,
-    # el rango automático también se obtiene
-    # a partir de esa cancha.
-    if court_id:
-        kpi_base_queryset = kpi_base_queryset.filter(
-            court_id=court_id
-        )
-
-    bounds = kpi_base_queryset.aggregate(
-        min_date=Min("reservation_date"),
-        max_date=Max("reservation_date"),
-    )
-
-    today = timezone.localdate()
-
-    kpi_start_date = (
-        parsed_start_date
-        or bounds["min_date"]
-        or today
-    )
-
-    kpi_end_date = (
-        parsed_end_date
-        or bounds["max_date"]
-        or today
-    )
-
-    # Evitar un rango inválido
-    if kpi_start_date > kpi_end_date:
-        messages.warning(
-            request,
-            "La fecha inicial no puede ser "
-            "posterior a la fecha final."
-        )
-
-        kpi_start_date, kpi_end_date = (
-            kpi_end_date,
-            kpi_start_date
-        )
-
-    # ---------------------------------
-    # M3-09
-    # Reservas / horas / valor
-    # ---------------------------------
-
-    summary_kpis = get_summary_kpis(
-        start_date=kpi_start_date,
-        end_date=kpi_end_date,
-        court_id=court_id or None,
-    )
-
-    # ---------------------------------
-    # M3-10
-    # Cancelaciones
-    # ---------------------------------
-
-    cancellation_kpis = get_cancellation_kpis(
-        start_date=kpi_start_date,
-        end_date=kpi_end_date,
-        court_id=court_id or None,
-    )
-
-    # ---------------------------------
-    # M3-08
-    # Ocupación por cancha
-    # ---------------------------------
-
-    occupancy_by_court = get_court_occupancy(
-        start_date=kpi_start_date,
-        end_date=kpi_end_date,
-        court_id=court_id or None,
-    )
-
-    # ---------------------------------
-    # Paginación
-    # ---------------------------------
-
-    paginator = Paginator(
-        reservations,
-        25
-    )
-
-    page = paginator.get_page(
-        request.GET.get("page")
-    )
-
-    parameters = request.GET.copy()
-
-    if "page" in parameters:
-        parameters.pop("page")
-
-    # ---------------------------------
-    # Contexto
-    # ---------------------------------
-
-    context = {
-        "pagina": page,
-        "canchas": courts,
-        "estados": statuses,
-
-        "fecha_desde": start_date_filter,
-        "fecha_hasta": end_date_filter,
-        "cancha_seleccionada": court_id,
-        "estado_seleccionado": status,
-
-        "querystring": parameters.urlencode(),
-
-        # KPIs
-        "summary_kpis": summary_kpis,
-        "cancellation_kpis": cancellation_kpis,
-        "occupancy_by_court": occupancy_by_court,
-
-        "kpi_start_date": kpi_start_date,
-        "kpi_end_date": kpi_end_date,
-    }
-
-    return render(
-        request,
-        "reservations/admin_reservas.html",
-        context
-    )
-
 
 @login_required(login_url="users:login")
 @admin_required
@@ -909,45 +628,13 @@ def admin_dashboard(request):
     analytics = dashboard_data(courts, reservations, start_date, end_date, filters["tipo"], data_source)
     status_counts = analytics["status_counts"]
 
-    upcoming = (
-        reservations.filter(
-            reservation_status__in=[
-                "PENDING_PAYMENT",
-                "CONFIRMED",
-            ],
-        )
-        .filter(
-            Q(reservation_date__gt=today)
-            | Q(reservation_date=today, start_time__gte=now.time())
-        )
-        .select_related(
-            "user",
-            "court",
-            "court__venue",
-        )
-        .order_by(
-            "reservation_date",
-            "start_time",
-        )[:8]
-    )
+    table_reservations = reservations.select_related("user", "court", "court__venue").order_by("-reservation_date", "-start_time", "-pk")
+    paginator = Paginator(table_reservations, 25)
+    reservation_page = paginator.get_page(request.GET.get("page"))
+    params = request.GET.copy()
+    if "page" in params:
+        params.pop("page")
 
-    today_reservations = (
-        reservations.filter(
-            reservation_date=today
-        )
-        .exclude(
-            reservation_status__in=[
-                "CANCELLED",
-                "EXPIRED",
-            ]
-        )
-        .select_related(
-            "user",
-            "court",
-            "court__venue",
-        )
-        .order_by("start_time")[:8]
-    )
 
     context = {
         "hoy": today,
@@ -962,6 +649,8 @@ def admin_dashboard(request):
         "datos_sinteticos": data_source == "SYNTHETIC" or reservations.filter(data_source="SYNTHETIC").exists(),
         "origen": data_source,
         "origenes": Reservation.DATA_SOURCES,
+        "pagina_reservas": reservation_page,
+        "querystring": params.urlencode(),
         "total_establecimientos": Venue.objects.filter(
             pk__in=courts.values("venue_id"), is_active=True,
         ).count(),
@@ -994,15 +683,25 @@ def admin_dashboard(request):
         ),
         "ingresos_aprobados": analytics["approved_payments"],
         "pagos_aprobados": analytics["approved_payment_count"],
-        "agenda_hoy": today_reservations,
-        "ultimas_reservas": reservations.select_related("user", "court", "court__venue").order_by(
-            "-reservation_date", "-start_time", "-pk",
-        )[:8],
-        "proximas_reservas": upcoming,
     }
 
     return render(
         request,
         "reservations/admin_dashboard.html",
         context
+    )
+
+@admin_required
+def admin_detalle_reserva(request, reserva_id):
+    reservation = get_object_or_404(
+        Reservation.objects
+        .select_related("user", "court", "court__venue")
+        .prefetch_related("payments"),
+        reservation_id=reserva_id
+    )
+
+    return render(
+        request,
+        "reservations/admin_detalle_reserva.html",
+        {"reserva": reservation}
     )
