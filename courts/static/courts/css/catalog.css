@@ -1,0 +1,43 @@
+.catalog-body {
+    min-height: 100vh;
+    background-color: var(--home-carbon);
+    background-image: linear-gradient(rgba(0,0,0,.32),rgba(0,0,0,.75)), url('../../users/images/home-background.png');
+    background-position: center top;
+    background-size: cover;
+    background-repeat: no-repeat;
+}
+.catalog-shell { width: min(1480px, 100%); padding: 28px 32px 0; margin: auto; }
+.catalog-nav { margin-bottom: 40px; padding: 22px 30px; }
+.catalog-nav .nav-links a { font-size: 15px; }
+.catalog-nav [aria-current='page'] { color: var(--brand-lime); position: relative; }
+.catalog-nav [aria-current='page']::after { content: ''; height: 3px; width: 40px; background: var(--brand-lime); position: absolute; left: calc(50% - 20px); bottom: -12px; border-radius: 3px; }
+.catalog-heading { margin: 0 20px 28px; }
+.catalog-heading .eyebrow { margin-bottom: 12px; }
+.catalog-heading h1 { font-size: clamp(28px,3vw,44px); line-height: 1.06; letter-spacing: -.045em; margin: 0 0 14px; font-weight: 900; }
+.catalog-heading h1 span { color: var(--brand-lime); }
+.catalog-heading > p:last-child { font-size: 17px; line-height: 1.6; color: #d7ddd3; margin: 0; }
+.catalog-summary { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; padding: 20px 24px; border: 1px solid var(--home-border); border-radius: 22px; background: rgba(46,58,39,.6); margin-bottom: 24px; }
+.catalog-summary p { margin: 0; font-size: 15px; }
+.catalog-summary strong { color: var(--brand-lime); }
+.catalog-summary span { color: var(--home-muted); font-size: 13px; }
+.venue-grid { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 22px; }
+.venue-card { min-width: 0; overflow: hidden; border: 1px solid var(--home-border); border-radius: 24px; background: linear-gradient(145deg,rgba(23,31,20,.95),rgba(12,15,11,.92)); }
+.venue-image { width: 100%; height: auto; aspect-ratio: 2.4; object-fit: cover; object-position: center 85%; border-bottom: 1px solid var(--home-border); }
+.venue-content { padding: 18px 20px; }
+.venue-content h2 { font-size: 24px; line-height: 1.15; letter-spacing: -.035em; margin: 0 0 10px; overflow-wrap: anywhere; }
+.venue-address { color: var(--home-muted); font-size: 12px; line-height: 1.6; margin: 0 0 18px; overflow-wrap: anywhere; }
+.venue-bottom { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px; }
+.venue-facts { flex: 1 1 160px; }
+.venue-facts p { margin: 0 0 7px; font-size: 12px; line-height: 1.5; color: #d4dace; }
+.venue-facts strong { color: white; font-weight: 500; }
+.fact-icon { color: var(--brand-lime); display: inline-block; width: 20px; font-size: 17px; }
+.venue-bottom .button { font-size: 12px; min-height: 42px; gap: 8px; padding: 10px 16px; }
+.venue-bottom svg { width: 17px; height: 17px; }
+.venue-deposit { color: var(--home-muted); font-size: 11px; margin: 14px 0 0; padding-top: 12px; border-top: 1px solid var(--home-border); }
+.catalog-empty { padding: 50px 24px; text-align: center; border: 1px solid var(--home-border); border-radius: 24px; background: rgba(27,36,22,.7); }
+.catalog-empty h2 { font-size: 26px; }
+.catalog-empty p { color: var(--home-muted); line-height: 1.6; }
+.catalog-footer { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 16px; border-top: 1px solid var(--home-border); padding: 28px 0; margin-top: 48px; font-size: 12px; color: var(--home-muted); }
+.catalog-footer p { margin: 0; }
+@media(max-width:1100px) { .venue-grid { grid-template-columns: repeat(2,minmax(0,1fr)); } .catalog-nav .nav-brand .brand-wordmark { width: 235px; } }
+@media(max-width:600px) { .catalog-shell { padding: 20px 16px 0; } .catalog-nav { padding: 20px; margin-bottom: 30px; } .catalog-nav .nav-brand .brand-wordmark { width: 195px; } .catalog-heading { margin: 0 4px 24px; } .catalog-heading > p:last-child { font-size: 15px; } .catalog-summary { padding: 18px; } .venue-grid { grid-template-columns: minmax(0,1fr); gap: 18px; } .venue-image { aspect-ratio: 1.9; } .catalog-nav [aria-current='page']::after { bottom: 0; } }

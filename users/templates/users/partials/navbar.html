@@ -1,0 +1,8 @@
+<nav class="navbar navbar-dark bg-dark" aria-label="Navegación principal">
+<div class="container d-flex flex-wrap gap-3">
+<a class="navbar-brand" href="{% url 'users:home' %}">Cancha Lista</a>
+<div class="d-flex flex-wrap align-items-center gap-3" style="--bs-link-color: white; --bs-link-hover-color: #32ff00;">
+{% include 'users/partials/navigation_links.html' %}
+{% if navigation_admin %}<a href="{% url 'reservations:admin_crear_reserva' %}">Nueva reserva manual</a>{% endif %}
+{% if request.user.is_authenticated %}<form method="post" action="{% url 'users:logout' %}">{% csrf_token %}<button class="btn btn-outline-light btn-sm" type="submit">Cerrar sesión</button></form>{% endif %}
+</div></div></nav>

@@ -1,0 +1,14 @@
+<a href="{% url 'users:home' %}">Inicio</a>
+{% if navigation_admin %}
+<a href="{% url 'reservations:admin_dashboard' %}">Dashboard</a>
+<a href="{% url 'reservations:admin_dashboard' %}#reservas-administrativas">Reservas</a>
+{% else %}
+<a href="{% url 'courts:establecimientos' %}">Establecimientos</a>
+{% if request.user.is_authenticated %}<a href="{% url 'reservations:mis_reservas' %}">Mis reservas</a>{% endif %}
+{% endif %}
+{% if request.user.is_authenticated %}
+<a href="{% url 'users:profile' %}">Mi perfil</a>
+{% else %}
+<a href="{% url 'users:login' %}">Iniciar sesión</a>
+<a href="{% url 'users:register' %}">Registrarse</a>
+{% endif %}

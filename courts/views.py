@@ -1,21 +1,21 @@
 from datetime import date
 
-from django.contrib.auth.decorators import login_required
 from django.shortcuts import get_object_or_404, render
 from django.utils import timezone
+from django.db.models import Count, Min, Q
 
 from reservations.services import get_availability
 
 from .models import Venue, Court
 
 
-@login_required
 def establecimientos(request):
     venues = Venue.objects.filter(
         is_active=True
-    ).order_by(
-        "venue_name"
-    )
+    ).annotate(
+        active_court_count=Count("courts", filter=Q(courts__is_active=True)),
+        starting_price=Min("courts__price_per_hour", filter=Q(courts__is_active=True, courts__price_per_hour__gte=0)),
+    ).order_by("venue_name", "venue_id")
 
     return render(
         request,
@@ -26,7 +26,6 @@ def establecimientos(request):
     )
 
 
-@login_required
 def canchas_establecimiento(
     request,
     venue_id
@@ -41,7 +40,7 @@ def canchas_establecimiento(
         venue=venue,
         is_active=True
     ).order_by(
-        "court_name"
+        "court_name", "court_id"
     )
 
     return render(
@@ -54,7 +53,6 @@ def canchas_establecimiento(
     )
 
 
-@login_required
 def disponibilidad_cancha(
     request,
     cancha_id
@@ -64,7 +62,8 @@ def disponibilidad_cancha(
             "venue"
         ),
         court_id=cancha_id,
-        is_active=True
+        is_active=True,
+        venue__is_active=True
     )
 
     selected_date = None

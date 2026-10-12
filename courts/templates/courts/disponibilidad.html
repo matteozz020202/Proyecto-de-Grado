@@ -18,36 +18,7 @@
 
 <body class="bg-light">
 
-<nav class="navbar navbar-dark bg-dark">
-    <div class="container">
-
-        <a
-            class="navbar-brand fw-bold"
-            href="{% url 'users:home' %}"
-        >
-            Cancha Lista
-        </a>
-
-        <div class="d-flex gap-2">
-
-            <a
-                href="{% url 'reservations:mis_reservas' %}"
-                class="btn btn-outline-light"
-            >
-                Mis reservas
-            </a>
-
-            <a
-                href="{% url 'courts:canchas_establecimiento' cancha.venue.venue_id %}"
-                class="btn btn-outline-light"
-            >
-                Volver
-            </a>
-
-        </div>
-
-    </div>
-</nav>
+{% include 'users/partials/navbar.html' %}
 
 
 <main class="container py-5">

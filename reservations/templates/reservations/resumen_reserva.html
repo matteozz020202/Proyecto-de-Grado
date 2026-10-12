@@ -25,27 +25,7 @@
 <body class="bg-light">
 
 
-<nav class="navbar navbar-dark bg-dark">
-
-    <div class="container">
-
-        <a
-            class="navbar-brand fw-bold"
-            href="{% url 'users:home' %}"
-        >
-            Cancha Lista
-        </a>
-
-        <a
-            href="{% url 'courts:disponibilidad_cancha' cancha.court_id %}?fecha={{ fecha|date:'Y-m-d' }}"
-            class="btn btn-outline-light"
-        >
-            Volver
-        </a>
-
-    </div>
-
-</nav>
+{% include 'users/partials/navbar.html' %}
 
 
 <main class="container py-5">

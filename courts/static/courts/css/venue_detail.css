@@ -1,0 +1,29 @@
+.venue-hero { display: grid; grid-template-columns: minmax(0,.9fr) minmax(0,1.2fr); gap: 40px; align-items: center; margin-bottom: 42px; }
+.venue-intro { min-width: 0; padding: 4px 16px; }
+.venue-back { display: inline-flex; gap: 10px; padding: 10px 0; font-size: 13px; color: var(--home-muted); margin-bottom: 24px; }
+.venue-back:hover { color: var(--brand-lime); }
+.venue-intro .eyebrow { margin-bottom: 12px; }
+.venue-intro h1 { font-size: clamp(34px,4vw,58px); line-height: 1.08; margin: 0 0 18px; font-weight: 800; letter-spacing: -.045em; overflow-wrap: anywhere; }
+.venue-location { color: #e0e5dc; font-size: 16px; line-height: 1.7; margin-bottom: 24px; overflow-wrap: anywhere; }
+.venue-info { display: flex; flex-wrap: wrap; gap: 10px; }
+.venue-info span { display: inline-block; padding: 10px 14px; border-radius: 12px; border: 1px solid var(--home-border); background: rgba(45,55,38,.5); font-size: 13px; }
+.venue-hero-image { aspect-ratio: 2; height: auto; border-radius: 28px; border: 1px solid var(--home-border); }
+.court-heading { display: flex; justify-content: space-between; align-items: center; gap: 20px; margin: 0 16px 24px; }
+.court-heading .eyebrow { margin-bottom: 10px; }
+.court-heading h2 { font-size: clamp(26px,2.6vw,38px); margin: 0 0 12px; font-weight: 800; letter-spacing: -.035em; }
+.court-heading h2 span { color: var(--brand-lime); }
+.court-heading p:last-child { color: var(--home-muted); font-size: 15px; line-height: 1.6; margin: 0; }
+.court-count { flex: 0 0 auto; padding: 10px 14px; border-radius: 12px; border: 1px solid var(--home-border); font-size: 13px; color: var(--home-muted); }
+.court-card { display: flex; flex-direction: column; }
+.court-image { aspect-ratio: 2; height: auto; }
+.court-content { flex: 1; display: flex; flex-direction: column; padding: 20px; }
+.court-content h3 { font-size: 24px; margin: 0 0 12px; letter-spacing: -.025em; overflow-wrap: anywhere; }
+.court-description { font-size: 13px; line-height: 1.7; color: var(--home-muted); margin: 0 0 24px; overflow-wrap: anywhere; }
+.court-booking { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 18px; margin-top: auto; padding-top: 20px; border-top: 1px solid var(--home-border); }
+.court-price span, .court-price small { display: block; color: var(--home-muted); font-size: 12px; }
+.court-price strong { display: block; color: var(--brand-lime); font-size: 27px; letter-spacing: -.03em; margin: 8px 0 4px; }
+.court-booking .button { font-size: 12px; padding: 12px 16px; gap: 10px; }
+.court-booking svg { width: 18px; height: 18px; }
+@media (max-width:1100px) { .venue-hero { gap: 24px; } .venue-intro { padding: 0; } .venue-hero-image { aspect-ratio: 1.4; } }
+@media (max-width:800px) { .venue-hero { grid-template-columns: minmax(0,1fr); gap: 24px; } .venue-hero-image { aspect-ratio: 2; } .venue-back { margin-bottom: 16px; } .court-heading { margin-left: 0; margin-right: 0; } }
+@media (max-width:600px) { .venue-hero { margin-bottom: 34px; } .venue-location { font-size: 14px; } .venue-hero-image { border-radius: 22px; aspect-ratio: 1.6; } .court-heading { align-items: flex-start; flex-direction: column; gap: 12px; } .court-heading h2 { line-height: 1.2; } .court-price strong { font-size: 25px; } .court-booking .button { flex: 1 1 160px; } }

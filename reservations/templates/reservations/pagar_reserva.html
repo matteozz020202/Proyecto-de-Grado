@@ -19,27 +19,7 @@
 
 <body class="bg-light">
 
-<nav class="navbar navbar-dark bg-dark">
-
-    <div class="container">
-
-        <a
-            class="navbar-brand fw-bold"
-            href="{% url 'users:home' %}"
-        >
-            Cancha Lista
-        </a>
-
-        <a
-            href="{% url 'reservations:mis_reservas' %}"
-            class="btn btn-outline-light"
-        >
-            Mis reservas
-        </a>
-
-    </div>
-
-</nav>
+{% include 'users/partials/navbar.html' %}
 
 
 <main class="container py-5">
