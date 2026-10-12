@@ -4,11 +4,15 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
 from django.core.paginator import Paginator
+from django.conf import settings
+from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
+from django.template.loader import render_to_string
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 from django.contrib.auth import get_user_model
+from pydantic import ValidationError as ContractValidationError
 
 from courts.models import Court, Venue
 from users.decorators import admin_required
@@ -16,6 +20,10 @@ from users.decorators import admin_required
 from .models import Reservation
 from .analytics import dashboard_data
 from .forms import DashboardFilterForm
+from .dashboard_scope import filtered_scope
+from .ai.adapters import AnalysisContextError, build_analysis_input
+from .ai.presentation import analysis_for_display
+from .ai.services import AIAnalysisError, AIAnalysisService
 from .services import (
     calculate_reservation_values,
     cancel_reservation,
@@ -614,16 +622,8 @@ def admin_dashboard(request):
     filters = form.cleaned_data
     data_source = filters["origen"]
     start_date, end_date = filters["fecha_inicio"], filters["fecha_fin"]
-    courts = Court.objects.select_related("venue").all()
-    if filters["establecimiento"]:
-        courts = courts.filter(venue=filters["establecimiento"])
-    if filters["cancha"]:
-        courts = courts.filter(pk=filters["cancha"].pk)
-    reservations = Reservation.objects.filter(
-        court__in=courts, reservation_date__range=(start_date, end_date),
-    )
-    if data_source != "ALL":
-        reservations = reservations.filter(data_source=data_source)
+    courts, source_reservations = filtered_scope(filters)
+    reservations = source_reservations.filter(reservation_date__range=(start_date, end_date))
 
     analytics = dashboard_data(courts, reservations, start_date, end_date, filters["tipo"], data_source)
     status_counts = analytics["status_counts"]
@@ -645,6 +645,18 @@ def admin_dashboard(request):
         "tipo_analisis": filters["tipo"],
         "ocupacion": analytics["occupancy"],
         "dashboard_data": analytics,
+        "analysis_filters": {key: (value.pk if key in ("cancha", "establecimiento") and value
+                                    else "" if value is None else value.isoformat()
+                                    if key in ("fecha_inicio", "fecha_fin") else value)
+                             for key, value in filters.items()},
+        "analysis_enabled": data_source != "ALL" and not analytics["occupancy"]["capacidad_inconsistente"]
+                            and bool(settings.OPENAI_API_KEY and settings.OPENAI_MODEL),
+        "analysis_block_reason": (
+            "Selecciona un origen específico para generar el análisis." if data_source == "ALL" else
+            "Revisa la capacidad y las reservas antes de generar el análisis."
+            if analytics["occupancy"]["capacidad_inconsistente"] else
+            "El análisis inteligente todavía no está configurado." if not (settings.OPENAI_API_KEY and settings.OPENAI_MODEL) else ""
+        ),
         "chart_data": analytics["chart_data"],
         "datos_sinteticos": data_source == "SYNTHETIC" or reservations.filter(data_source="SYNTHETIC").exists(),
         "origen": data_source,
@@ -690,6 +702,48 @@ def admin_dashboard(request):
         "reservations/admin_dashboard.html",
         context
     )
+
+
+@login_required(login_url="users:login")
+@admin_required
+@require_POST
+def admin_dashboard_analysis(request):
+    form = DashboardFilterForm(request.POST)
+    error = None
+    status = 200
+    context = {}
+    if request.POST.get("origen") not in dict(Reservation.DATA_SOURCES) and request.POST.get("origen") != "ALL":
+        error, status = "Selecciona un origen válido y vuelve a aplicar los filtros.", 400
+    elif not form.is_valid():
+        error, status = "Revisa el establecimiento, la cancha y las fechas; vuelve a aplicar los filtros.", 400
+    else:
+        filters = form.cleaned_data
+        courts, reservations = filtered_scope(filters)
+        try:
+            analytics = dashboard_data(courts, reservations, filters["fecha_inicio"], filters["fecha_fin"],
+                                       filters["tipo"], filters["origen"])
+            payload = build_analysis_input(filters, analytics, courts, reservations)
+            result = AIAnalysisService().generate(payload)
+        except AnalysisContextError as exc:
+            error = {"SELECT_SINGLE_SOURCE": "Selecciona un origen específico; el análisis no mezcla fuentes.",
+                     "INCONSISTENT_CAPACITY": "Revisa las reservas y los horarios: la ocupación supera la capacidad."}[exc.code]
+            status = 400
+        except AIAnalysisError as exc:
+            error = {
+                "CONFIGURATION_ERROR": "El análisis inteligente todavía no está configurado.",
+                "TIMEOUT": "El análisis tardó demasiado. Puedes intentarlo nuevamente.",
+                "INPUT_TOO_LARGE": "El período contiene demasiada información. Reduce las fechas o selecciona una cancha.",
+                "RATE_LIMIT": "El análisis no está disponible por ahora. Inténtalo más tarde.",
+            }.get(exc.code, "No se pudo generar un análisis validado. Puedes intentarlo nuevamente; los indicadores siguen disponibles.")
+            status = 503
+        except (ValidationError, ContractValidationError):
+            error, status = "Revisa los datos del contexto antes de solicitar el análisis.", 400
+        else:
+            context = {"analysis": analysis_for_display(result, payload), "analysis_generated_at": timezone.localtime()}
+    if error:
+        context = {"analysis_error": error}
+    html = render_to_string("reservations/dashboard_insights_result.html", context, request=request)
+    return JsonResponse({"state": "ERROR" if error else "SUCCESS", "html": html}, status=status)
 
 @admin_required
 def admin_detalle_reserva(request, reserva_id):
