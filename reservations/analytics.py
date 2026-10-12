@@ -1,6 +1,6 @@
 """KPIs determinísticos de ocupación a partir de horarios y reservas."""
 from collections import defaultdict
-from datetime import timedelta
+from datetime import datetime, timedelta
 from decimal import Decimal
 
 from django.db.models import Count, Q, Sum
@@ -8,10 +8,27 @@ from django.utils import timezone
 from courts.models import CourtSchedule
 from .models import Payment, Reservation
 
-VALID_RESERVATION_STATUSES = (
-    "CONFIRMED",
-    "COMPLETED",
-)
+ANALYSIS_STATUSES = {"HISTORICAL": "COMPLETED", "FUTURE": "CONFIRMED"}
+
+
+def analysis_reservations(reservations, analysis_type):
+    valid = reservations.filter(reservation_status=ANALYSIS_STATUSES[analysis_type])
+    if analysis_type == "FUTURE":
+        now = timezone.localtime()
+        valid = valid.exclude(reservation_date=now.date(), end_time__lte=now.time().replace(tzinfo=None))
+    return valid
+
+
+def average_booking_lead_hours(reservations):
+    leads = []
+    for day, start, created in reservations.values_list("reservation_date", "start_time", "created_at"):
+        begins = timezone.make_aware(datetime.combine(day, start), timezone.get_current_timezone())
+        hours = Decimal(str((begins - created).total_seconds())) / 3600
+        if hours < 0:
+            # Importaciones con created_at posterior al servicio no permiten reconstruir antelación.
+            return None
+        leads.append(hours)
+    return sum(leads, Decimal(0)) / len(leads) if leads else None
 
 def seconds(value):
     return value.hour * 3600 + value.minute * 60 + value.second
@@ -156,6 +173,7 @@ def dashboard_data(
     charts and future administrative AI analysis.
     """
 
+    reservations = reservations.filter(court__in=courts, reservation_date__range=(start_date, end_date))
     metrics = occupancy(
         courts,
         reservations,
@@ -190,13 +208,10 @@ def dashboard_data(
     )
 
     # -------------------------------------------------
-    # Official valid reservations
-    # CONFIRMED + COMPLETED
+    # Misma interpretación histórica/programada que ocupación y contrato de IA.
     # -------------------------------------------------
 
-    valid_reservations = reservations.filter(
-        reservation_status__in=VALID_RESERVATION_STATUSES
-    )
+    valid_reservations = analysis_reservations(reservations, analysis_type)
 
     valid_reservation_count = (
         valid_reservations.count()
@@ -233,21 +248,13 @@ def dashboard_data(
         or Decimal("0")
     )
 
-    approved_valid_total = (
-        valid_approved_payments
-        .aggregate(total=Sum("amount"))["total"]
-        or Decimal("0")
+    # Un sobrepago nunca compensa la deuda de otra reserva. Incluye abonos y saldos.
+    paid_rows = valid_reservations.annotate(
+        approved_paid=Sum("payments__amount", filter=Q(payments__payment_status="APPROVED")),
+    ).values_list("total_amount", "approved_paid")
+    pending_balance = sum(
+        (max(total - (paid or Decimal(0)), Decimal(0)) for total, paid in paid_rows), Decimal(0),
     )
-
-    # Outstanding amount is derived from real approved
-    # payments instead of Reservation.remaining_amount.
-    pending_balance = (
-        reservation_value
-        - approved_valid_total
-    )
-
-    if pending_balance < 0:
-        pending_balance = Decimal("0")
 
     # -------------------------------------------------
     # Occupancy extremes
@@ -323,6 +330,7 @@ def dashboard_data(
         "pending_balance": pending_balance,
 
         "cancellation_rate": cancellation_rate,
+        "average_booking_lead_hours": average_booking_lead_hours(valid_reservations),
 
         "busiest_day": busiest_day,
         "least_busy_day": least_busy_day,

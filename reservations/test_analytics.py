@@ -235,7 +235,7 @@ class AnalyticsTests(TestCase):
         self.assertEqual(data["summary"]["cancellation_rate"], Decimal(100) / 3)
         self.assertEqual(data["summary"]["approved_deposits"], Decimal(36000))
         self.assertEqual(data["approved_payments"], Decimal(120000))
-        self.assertEqual(data["summary"]["reservation_value"], Decimal(240000))
+        self.assertEqual(data["summary"]["reservation_value"], Decimal(120000))
         self.assertEqual(len(data["reservation_status_distribution"]), 5)
 
     def test_empty_data_preserves_nulls_and_synthetic_notice(self):
@@ -324,24 +324,21 @@ class AnalyticsTests(TestCase):
 
         summary = data["summary"]
 
-        # CONFIRMED + COMPLETED are valid for general KPIs.
+        # El resumen histórico comparte el alcance COMPLETED de la ocupación.
         self.assertEqual(
             summary["valid_reservations"],
-            2,
+            1,
         )
 
         self.assertEqual(
             summary["reservation_value"],
-            completed.total_amount
-            + confirmed.total_amount,
+            completed.total_amount,
         )
 
-        # Completed reservation was fully paid.
-        # Confirmed reservation has no payment,
-        # therefore its full value remains pending.
+        # La completada está pagada; la confirmada queda fuera del histórico.
         self.assertEqual(
             summary["pending_balance"],
-            confirmed.total_amount,
+            Decimal(0),
         )
 
         # Historical occupancy still only uses COMPLETED.

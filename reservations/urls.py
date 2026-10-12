@@ -37,6 +37,7 @@ urlpatterns = [
         views.admin_dashboard,
         name="admin_dashboard"
     ),
+    path("admin/dashboard/analisis/", views.admin_dashboard_analysis, name="admin_dashboard_analysis"),
     path(
     "admin/reservas/<int:reserva_id>/",
     views.admin_detalle_reserva,

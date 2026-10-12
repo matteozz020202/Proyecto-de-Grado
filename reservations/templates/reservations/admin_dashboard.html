@@ -140,7 +140,7 @@
                             {{ dashboard_data.summary.valid_reservations }}
                         </strong>
                         <small class="text-muted d-block">
-                            Confirmadas + completadas
+                            {% if tipo_analisis == 'FUTURE' %}Confirmadas del análisis programado{% else %}Completadas del análisis histórico{% endif %}
                         </small>
                     </div>
                 </div>
@@ -333,7 +333,20 @@
         <div class="col-12 col-lg-6">
             <section class="card shadow-sm h-100" aria-labelledby="insights-title"><div class="card-body">
                 <h3 id="insights-title" class="h5">Insights del período</h3>
-                <p class="text-muted">No se ha generado un análisis inteligente para este contexto.</p>
+                <p class="text-muted small">Análisis de los filtros aplicados: {{ fecha_inicio|date:"d/m/Y" }}–{{ fecha_fin|date:"d/m/Y" }}.
+                    {% if form.cleaned_data.establecimiento %}{{ form.cleaned_data.establecimiento.venue_name }}.{% endif %}
+                    {% if form.cleaned_data.cancha %}{{ form.cleaned_data.cancha.court_name }}.{% endif %}
+                    Las recomendaciones son opciones para evaluar; la decisión corresponde al administrador.</p>
+                <form id="dashboard-analysis-form" method="post" action="{% url 'reservations:admin_dashboard_analysis' %}">
+                    {% csrf_token %}
+                    {% for name, value in analysis_filters.items %}<input type="hidden" name="{{ name }}" value="{{ value }}">{% endfor %}
+                    <button type="submit" class="btn btn-success" id="generate-analysis" {% if not analysis_enabled %}disabled{% endif %}>Generar análisis</button>
+                </form>
+                {% if analysis_block_reason %}<p class="text-muted small mt-2">{{ analysis_block_reason }}</p>{% endif %}
+                <noscript><p class="text-muted mt-2">Activa JavaScript para solicitar el análisis inteligente.</p></noscript>
+                <div id="dashboard-analysis-result" class="mt-3" aria-live="polite" aria-atomic="false" data-state="IDLE">
+                    <p class="text-muted">No se ha generado un análisis inteligente para este contexto.</p>
+                </div>
             </div></section>
         </div>
     </div>
@@ -392,6 +405,7 @@
 {% if filtros_validos %}
 <script src="{% static 'reservations/vendor/chart.umd.min.js' %}" defer></script>
 <script src="{% static 'reservations/dashboard.js' %}" defer></script>
+<script src="{% static 'reservations/dashboard_insights.js' %}" defer></script>
 {% endif %}
 </body>
 </html>

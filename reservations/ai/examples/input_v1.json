@@ -1,0 +1,103 @@
+{
+  "contract_version": "1.0",
+  "analysis_context": {
+    "venue_id": 1,
+    "venue_name": "Arena de demostración",
+    "court_id": null,
+    "court_name": null,
+    "start_date": "2026-08-01",
+    "end_date": "2026-08-31",
+    "analysis_type": "HISTORICAL",
+    "data_source": "SYNTHETIC",
+    "currency": "COP",
+    "response_language": "es"
+  },
+  "summary": {
+    "occupancy_rate": 50,
+    "valid_reservations": 2,
+    "reserved_hours": 2,
+    "available_hours": 4,
+    "reservation_value": 200000,
+    "approved_deposits": 60000,
+    "pending_balance": 140000,
+    "cancellation_rate": 0,
+    "average_booking_lead_hours": null
+  },
+  "reservation_status_counts": {
+    "pending_payment": 0,
+    "confirmed": 0,
+    "completed": 2,
+    "cancelled": 0,
+    "expired": 0
+  },
+  "occupancy_by_court": [
+    {
+      "court_id": 101,
+      "court_name": "Cancha 1",
+      "reserved_hours": 2,
+      "available_hours": 4,
+      "occupancy_rate": 50
+    }
+  ],
+  "occupancy_by_day": [
+    {
+      "day": "Friday",
+      "reserved_hours": 1,
+      "available_hours": 2,
+      "occupancy_rate": 50
+    },
+    {
+      "day": "Saturday",
+      "reserved_hours": 1,
+      "available_hours": 2,
+      "occupancy_rate": 50
+    }
+  ],
+  "occupancy_by_time_slot": [
+    {
+      "time_slot": "18:00-20:00",
+      "reserved_hours": 2,
+      "available_hours": 4,
+      "occupancy_rate": 50
+    }
+  ],
+  "comparisons": {
+    "previous_period": null,
+    "occupancy_variation_pp": null,
+    "reservations_variation_pct": null
+  },
+  "extremes": {
+    "highest_occupancy_days": [
+      {
+        "reference": "Friday",
+        "value": 50
+      },
+      {
+        "reference": "Saturday",
+        "value": 50
+      }
+    ],
+    "lowest_occupancy_days": [
+      {
+        "reference": "Friday",
+        "value": 50
+      },
+      {
+        "reference": "Saturday",
+        "value": 50
+      }
+    ],
+    "highest_occupancy_time_slots": [
+      {
+        "reference": "18:00-20:00",
+        "value": 50
+      }
+    ],
+    "lowest_occupancy_time_slots": [
+      {
+        "reference": "18:00-20:00",
+        "value": 50
+      }
+    ]
+  }
+}

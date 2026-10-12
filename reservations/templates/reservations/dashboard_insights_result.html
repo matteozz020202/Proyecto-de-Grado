@@ -1,0 +1,34 @@
+{% load i18n %}
+{% if analysis_error %}
+    <p class="alert alert-warning mb-0" role="alert">{{ analysis_error }}</p>
+{% else %}
+    <p class="small text-muted">Calculado al solicitarlo: {{ analysis_generated_at|date:"d/m/Y H:i" }}.</p>
+    <p>{{ analysis.analysis_summary }}</p>
+    {% for insight in analysis.insights %}
+        <article class="border rounded p-3 mb-3">
+            <div class="d-flex flex-wrap gap-2 align-items-center mb-2">
+                <span class="small text-muted">{{ insight.type_label }}</span>
+                <span class="badge text-bg-{{ insight.priority_color }}">Prioridad {{ insight.priority_label|lower }}</span>
+            </div>
+            <h4 class="h6">{{ insight.finding }}</h4>
+            <p class="small fw-semibold mb-1">Evidencia</p>
+            <ul class="small">
+                {% for item in insight.evidence %}
+                    <li>{{ item.label }}{% if item.reference_label %} · {{ item.reference_label }}{% endif %}:
+                        {% language "es-co" %}{{ item.value|floatformat:"2g" }}{% endlanguage %} {{ item.unit_label }}</li>
+                {% endfor %}
+            </ul>
+            <p class="mb-2"><strong>Recomendación:</strong> {{ insight.recommendation }}</p>
+            <p class="small text-muted mb-0"><strong>Justificación:</strong> {{ insight.justification }}</p>
+        </article>
+    {% empty %}
+        <p class="alert alert-light border">No se identificaron hallazgos suficientes para formular recomendaciones sustentadas.</p>
+    {% endfor %}
+    {% if analysis.limitations %}
+        <div class="border-top pt-2"><h4 class="h6">Limitaciones</h4>
+            <ul class="small mb-0">{% for limitation in analysis.limitations %}<li>{{ limitation }}</li>{% endfor %}</ul>
+        </div>
+    {% endif %}
+    <p class="text-muted small mt-2 mb-0">La capacidad usa los horarios actuales; no reconstruye horarios históricos.
+        Los datos no disponibles no se interpretan como cero.</p>
+{% endif %}

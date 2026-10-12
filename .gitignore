@@ -28,3 +28,7 @@ backup_reservas_sprint1.json
 Thumbs.db
 
 media/
+
+.env
+.env.*
+!.env.example
