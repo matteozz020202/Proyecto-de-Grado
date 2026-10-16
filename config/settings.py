@@ -31,7 +31,6 @@ OPENAI_MODEL = os.getenv("OPENAI_MODEL", "").strip()
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 
-
 SECRET_KEY = os.getenv(
     "SECRET_KEY",
     "django-insecure-local-development-key"
