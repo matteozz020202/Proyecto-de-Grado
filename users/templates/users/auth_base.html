@@ -1,0 +1,44 @@
+{% load static i18n %}
+{% language 'es' %}
+<!DOCTYPE html>
+<html lang="es"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% if register %}Crear cuenta{% else %}Iniciar sesión{% endif %} · Cancha Lista</title>
+<link rel="icon" href="{% static 'users/images/logo-icon.png' %}">
+<link rel="stylesheet" href="{% static 'users/css/auth.css' %}">
+</head><body>
+<main class="auth-layout">
+<section class="auth-panel" aria-labelledby="auth-title">
+<div class="auth-content">
+<a class="auth-brand" href="{% url 'users:home' %}" aria-label="Cancha Lista, volver al Index"><img src="{% static 'users/images/logo-horizontal.png' %}" alt="Cancha Lista. Encuentra, reserva, juega." width="1366" height="768"></a>
+<nav class="auth-tabs" aria-label="Acceso a tu cuenta">
+<a href="{% url 'users:login' %}{% if next %}?next={{ next|urlencode }}{% endif %}" {% if not register %}aria-current="page"{% endif %}>Iniciar sesión</a>
+<a href="{% url 'users:register' %}{% if next %}?next={{ next|urlencode }}{% endif %}" {% if register %}aria-current="page"{% endif %}>Crear cuenta</a>
+</nav>
+<div class="auth-card">
+<h1 id="auth-title">{% if register %}Crea tu <span>cuenta</span>{% else %}Bienvenido <span>de nuevo</span>{% endif %}</h1>
+<p class="auth-subtitle">{% if register %}Regístrate para reservar tus canchas y gestionar tus reservas.{% else %}Inicia sesión para continuar.{% endif %}</p>
+{% if form.errors %}<div class="auth-errors" role="alert"><p>Revisa los datos del formulario.</p>{{ form.non_field_errors }}</div>{% endif %}
+<form method="post" action="{% if register %}{% url 'users:register' %}{% else %}{% url 'users:login' %}{% endif %}">
+{% csrf_token %}<input type="hidden" name="next" value="{{ next }}">
+{% for field in form %}
+<div class="auth-field">
+<label for="{{ field.id_for_label }}">{{ field.label }}</label>
+{{ field }}
+{% if field.help_text %}<div class="field-help" id="{{ field.auto_id }}_helptext">{{ field.help_text|safe }}</div>{% endif %}
+{% if field.errors %}<div class="field-errors" id="{{ field.auto_id }}_error">{{ field.errors }}</div>{% endif %}
+</div>
+{% endfor %}
+<button class="auth-submit" type="submit">{% if register %}Crear cuenta{% else %}Iniciar sesión{% endif %}<span aria-hidden="true">↗</span></button>
+</form>
+<p class="auth-switch">{% if register %}¿Ya tienes una cuenta? <a href="{% url 'users:login' %}{% if next %}?next={{ next|urlencode }}{% endif %}">Iniciar sesión</a>{% else %}¿No tienes una cuenta? <a href="{% url 'users:register' %}{% if next %}?next={{ next|urlencode }}{% endif %}">Crear cuenta</a>{% endif %}</p>
+</div>
+<a class="back-index" href="{% url 'users:home' %}">← Volver a Cancha Lista</a>
+</div>
+</section>
+<aside class="auth-photo" aria-labelledby="photo-title">
+<img src="{% static 'users/images/imagen-deportiva.jpg' %}" alt="" width="1368" height="1824" fetchpriority="high">
+<div class="photo-copy"><p class="photo-eyebrow">ENCUENTRA · RESERVA · JUEGA</p><h2 id="photo-title">TU PARTIDO<br>EMPIEZA <span>AQUÍ</span></h2><p>Encuentra tu cancha, reserva tu horario y prepárate para jugar.</p></div>
+</aside>
+</main></body></html>
+{% endlanguage %}

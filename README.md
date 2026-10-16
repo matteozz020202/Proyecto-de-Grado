@@ -203,3 +203,47 @@ Validación aislada:
 .venv/bin/python manage.py test --settings=config.test_settings
 node --test tests/dashboard_insights.test.cjs
 ```
+
+### H4-05 — Home de Cancha Lista
+
+El Index público usa los recursos oficiales locales en `users/static/users/images/`, conservados sin modificar. Incluye splash, navegación en la segunda sección, pasos de reserva y diseño adaptable. El color de marca se define como `--brand-lime: #32FF00` en `users/static/users/css/home.css`.
+
+“Buscar canchas” abre el listado de establecimientos existente. La tarjeta destacada selecciona por ID la primera cancha activa con establecimiento activo, nombres válidos y precio no negativo; muestra datos reales y enlaza a la consulta de disponibilidad. No afirma disponibilidad inmediata, distancia ni pagos reales. Una imagen local ausente o fallida usa `Fallback-image.jpg`; si no hay canchas válidas se presenta un estado vacío. Se conservan los accesos por rol y el cierre de sesión mediante POST.
+
+Verificación: 136 pruebas de Django con `--settings=config.test_settings`; comprobación en Chromium de 375, 768 y 1440 px, sin desbordamiento horizontal, menú accesible con Escape y recuperación ante foto fallida. Las pruebas usan SQLite aislado y no alteran Neon.
+
+### Autenticación y navegación por rol
+
+El Index `/` es público y no es el destino habitual después del login. Un usuario normal entra a `/reservar/` (establecimientos); un administrador entra a `/reservas/admin/dashboard/`. La política compartida vive en `users/navigation.py` y reutiliza `is_staff`, `is_superuser` y el grupo `Administrador`.
+
+La exploración de establecimientos, canchas y disponibilidad no requiere sesión. Seleccionar un horario para crear una reserva sí requiere login; `next` conserva fecha y horario. El botón “Reservar” del Index pide login a visitantes y continúa en disponibilidad. `next` acepta únicamente destinos resueltos y permitidos por rol, comprueba propiedad para pago, rechaza destinos externos y excluye acciones POST como logout/cancelación/análisis.
+
+El registro `/registro/` crea únicamente usuarios normales. `/perfil/` permite editar nombre, apellido y correo; el cambio de contraseña utiliza las vistas oficiales de Django y mantiene la sesión. No se añade teléfono porque no existe ese campo en el modelo actual. No incluye recuperación de contraseña por correo.
+
+Los menús compartidos distinguen visitante, usuario y administrador. “Reservas” administrativas abre el listado existente en el dashboard, respetando sus filtros; “Mis reservas” muestra únicamente reservas propias, con estados y etiquetas Próxima/Historial. La marca temporal usa la zona horaria de Django. No se requiere migración ni modificación de las cuentas existentes.
+
+Validación de esta etapa: pruebas aisladas de login por rol, exploración pública, continuidad del horario seleccionado, protección administrativa, propiedad de reservas, registro sin escalamiento, edición de perfil y cambio de contraseña; revisión Chromium de navegación a 375, 768 y 1440 px.
+
+### Diseño de Login y Registro
+
+`/login/` y `/registro/` comparten `users/auth_base.html` y `users/static/users/css/auth.css`: dos paneles en escritorio/tablet, formulario primero y banner deportivo después en móvil. Logo, textura y `imagen-deportiva.jpg` son archivos locales oficiales; el acento es `#32FF00`. No se muestran controles sociales, recuperación por correo ni remember-me sin implementación.
+
+El login sigue autenticando por username para mantener compatibilidad con las cuentas existentes. El registro solicita usuario, nombre completo, correo requerido, contraseña y confirmación. Guarda el nombre completo en `User.first_name`, normaliza el correo a minúsculas y rechaza duplicados sin distinguir mayúsculas. Aplica Django UserCreationForm, validadores de contraseña, hashing, CSRF y asignación server-side del grupo Usuario. Los tabs, enlaces inferiores, errores de formulario y POST preservan `next`; la política compartida decide el destino permitido por rol.
+
+Validación: 151 pruebas Django aisladas y revisión Chromium a 375, 768 y 1440 px (labels, tabs, continuidad de next, sin overflow horizontal; login y registro sin scroll vertical a 1440×900). Deuda: la unicidad del correo se comprueba en el formulario; el User estándar no tiene una restricción única de correo en la base de datos, por lo que una garantía ante registros simultáneos requeriría una migración dedicada. El inicio de sesión por correo y la recuperación por correo no se incluyen en esta etapa.
+
+### Catálogo público de establecimientos
+
+`/reservar/` utiliza una única vista, consulta y plantilla para visitantes, usuarios y administradores. Conserva su función de landing post-login del usuario; el administrador sigue entrando al dashboard. Su diseño usa los recursos oficiales locales, tarjetas adaptables y menú contextual por sesión/rol. “Ver canchas” permite explorar sin login; crear una reserva conserva la protección existente.
+
+La consulta agrega cantidad de canchas activas y precio mínimo de canchas activas con tarifa no negativa. Solo lista establecimientos activos, ordenados por nombre e ID. Las fotos ausentes o fallidas usan el respaldo oficial como imagen de referencia, sin carruseles ficticios. No se añaden filtros de ubicación/fecha/hora/tipo no soportados. Se mantiene visible el porcentaje de abono real y un estado vacío cuando no hay establecimientos.
+
+Verificación: 155 pruebas Django aisladas; catálogo comprobado en Chromium para visitante, usuario y administrador a 375, 768 y 1440 px, sin desbordamiento horizontal, con menú de cuenta, recuperación de fotos y navegación “Ver canchas”. No requiere migraciones ni cambia datos de Neon.
+
+### Detalle público del establecimiento y sus canchas
+
+La ruta existente `/reservar/<venue_id>/canchas/` muestra un hero con nombre, dirección, ciudad, imagen o respaldo, número de canchas activas y porcentaje de abono del establecimiento. Las tarjetas usan únicamente nombre, descripción, imagen y precio por hora reales de Court, con formato COP sin decimales y botón “Ver disponibilidad”. Catálogo y detalle comparten `users/partials/branded_navbar.html` y la recuperación de imágenes de `courts/js/catalog.js`.
+
+La consulta `Court.objects.filter(venue=venue, is_active=True).order_by("court_name", "court_id")` garantiza que no aparezcan canchas de otros establecimientos ni inactivas. La pantalla pública utiliza dos consultas en el caso anónimo; no consulta relaciones por tarjeta. Venue inexistente o inactivo produce 404. Sin canchas activas se muestra un estado vacío. No se añaden modelos, galería, servicios, clasificación deportiva, dimensiones, filtros ni afirmaciones de disponibilidad temporal sin respaldo.
+
+El CTA abre `/reservar/cancha/<court_id>/disponibilidad/` sin login. El visitante selecciona fecha y horario antes de autenticarse para reservar; el usuario autenticado continúa directamente. Se conservan los permisos y la landing administrativa del dashboard. Validación: 159 pruebas Django, incluidos aislamiento entre establecimientos y número de consultas; revisión Chromium de tres roles a 375, 768 y 1440 px, navegación a disponibilidad, fondo, menú y respaldo de fotos. La pantalla de disponibilidad mantiene su diseño anterior, pendiente de una etapa visual específica.

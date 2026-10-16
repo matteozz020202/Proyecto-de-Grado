@@ -31,6 +31,7 @@ from .services import (
     create_pending_reservation,
     expire_pending_reservations,
     get_availability,
+    process_simulated_payment,
 )
 
 
@@ -55,6 +56,13 @@ def mis_reservas(request):
             "-start_time"
         )
     )
+
+    now = timezone.localtime()
+    for reservation in reservations:
+        reservation.is_upcoming = (
+            reservation.reservation_status in {"PENDING_PAYMENT", "CONFIRMED"}
+            and (reservation.reservation_date, reservation.end_time) > (now.date(), now.time().replace(tzinfo=None))
+        )
 
     return render(
         request,

@@ -16,22 +16,7 @@
 
 <body class="bg-light">
 
-<nav class="navbar navbar-dark bg-dark">
-    <div class="container">
-
-        <a
-            class="navbar-brand fw-bold"
-            href="{% url 'users:home' %}"
-        >
-            Cancha Lista
-        </a>
-
-        <span class="navbar-text text-white">
-            {{ request.user.username }}
-        </span>
-
-    </div>
-</nav>
+{% include 'users/partials/navbar.html' %}
 
 
 <main class="container py-5">
@@ -266,7 +251,7 @@
                         <div class="card-footer bg-white border-0">
 
                             <small class="text-muted">
-                                Reserva #{{ reserva.reservation_id }}
+                                {% if reserva.is_upcoming %}Próxima{% else %}Historial{% endif %} · Reserva #{{ reserva.reservation_id }}
                             </small>
 
                         </div>

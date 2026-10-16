@@ -77,6 +77,7 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                'users.context_processors.navigation',
             ],
         },
     },
@@ -161,8 +162,8 @@ STATIC_URL = 'static/'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-LOGIN_REDIRECT_URL = "user:home"
-LOGOUT_REDIRECT_URL = "user:login"
-LOGIN_URL = "user:login"
+LOGIN_REDIRECT_URL = "courts:establecimientos"
+LOGOUT_REDIRECT_URL = "users:login"
+LOGIN_URL = "users:login"
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"

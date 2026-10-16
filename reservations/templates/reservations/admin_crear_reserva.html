@@ -59,27 +59,7 @@
 <body class="bg-light">
 
 
-<nav class="navbar navbar-dark bg-dark">
-
-    <div class="container">
-
-        <a
-            class="navbar-brand"
-            href="{% url 'users:home' %}"
-        >
-            Cancha Lista
-        </a>
-
-        <a
-            href="{% url 'reservations:admin_dashboard' %}"
-            class="btn btn-outline-light btn-sm"
-        >
-            Volver al panel
-        </a>
-
-    </div>
-
-</nav>
+{% include 'users/partials/navbar.html' %}
 
 
 <main class="container py-4">
