@@ -235,7 +235,9 @@ def create_pending_reservation(
     court,
     reservation_date,
     start_time,
-    end_time
+    end_time,
+    guest_name="",
+    guest_phone="",
 ):
     """
     Creates a temporary reservation in
@@ -310,6 +312,8 @@ def create_pending_reservation(
     reservation = Reservation(
         court=court,
         user=user,
+        guest_name=guest_name,
+        guest_phone=guest_phone,
         reservation_date=reservation_date,
         start_time=start_time,
         end_time=end_time,
@@ -339,17 +343,28 @@ def create_admin_reservation(
     reservation_date,
     start_time,
     end_time,
+    guest_name="",
+    guest_phone="",
 ):
     """
-    Creates a reservation manually from the
-    administrative panel.
+    Crea una reserva manual desde administración.
 
-    The existing reservation creation service is reused
-    so schedule and overlap validations remain centralized.
-
-    Administrative reservations are confirmed immediately
-    and do not use the 15-minute payment hold.
+    Puede pertenecer a un usuario registrado o
+    a un cliente presencial sin cuenta.
     """
+
+    guest_name = (guest_name or "").strip()
+    guest_phone = (guest_phone or "").strip()
+
+    if user is None and not guest_name:
+        raise ValidationError(
+            "Debes seleccionar un usuario registrado "
+            "o indicar el nombre del cliente sin cuenta."
+        )
+
+    if user is not None:
+        guest_name = ""
+        guest_phone = ""
 
     reservation = create_pending_reservation(
         user=user,
@@ -357,6 +372,8 @@ def create_admin_reservation(
         reservation_date=reservation_date,
         start_time=start_time,
         end_time=end_time,
+        guest_name=guest_name,
+        guest_phone=guest_phone,
     )
 
     reservation.reservation_status = "CONFIRMED"
@@ -370,7 +387,6 @@ def create_admin_reservation(
     )
 
     return reservation
-
 
 @transaction.atomic
 def process_simulated_payment(
@@ -519,6 +535,30 @@ def cancel_reservation(
             "reservation_status",
             "cancelled_at",
             "hold_expires_at",
+        ]
+    )
+
+    return reservation
+
+@transaction.atomic
+def complete_reservation(reservation):
+    reservation = (
+        Reservation.objects
+        .select_for_update()
+        .get(pk=reservation.pk)
+    )
+
+    if reservation.reservation_status != "CONFIRMED":
+        raise ValidationError(
+            "Solo las reservas confirmadas "
+            "pueden marcarse como completadas."
+        )
+
+    reservation.reservation_status = "COMPLETED"
+
+    reservation.save(
+        update_fields=[
+            "reservation_status"
         ]
     )
 

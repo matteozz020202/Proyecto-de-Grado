@@ -21,7 +21,7 @@ def login_destination(request, user, next_url=""):
             match = None
         public = {"users:home", "courts:establecimientos", "courts:canchas_establecimiento", "courts:disponibilidad_cancha"}
         personal = {"users:profile", "users:password_change", "users:password_change_done", "reservations:mis_reservas", "reservations:resumen_reserva", "reservations:pagar_reserva"}
-        administrative = {"reservations:admin_dashboard", "reservations:admin_crear_reserva", "reservations:admin_detalle_reserva"}
+        administrative = {"reservations:admin_dashboard","reservations:admin_reservas","reservations:admin_crear_reserva","reservations:admin_detalle_reserva",}
         if match and match.view_name == "reservations:pagar_reserva":
             from reservations.models import Reservation
             if not Reservation.objects.filter(pk=match.kwargs["reserva_id"], user=user).exists():

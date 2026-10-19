@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.db import models
 from django.core.validators import MinValueValidator, MaxValueValidator
 
@@ -49,6 +50,14 @@ class Venue(models.Model):
         verbose_name="Imagen del establecimiento"
     )
 
+    manager = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="managed_venues",
+        null=True,
+        blank=True,
+        verbose_name="Administrador"
+    )
     class Meta:
         db_table = "venues"
         verbose_name = "Establecimiento"
