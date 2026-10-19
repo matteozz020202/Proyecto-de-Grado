@@ -1,0 +1,1 @@
+{% if messages %}<div class="account-messages" role="status">{% for message in messages %}<p class="account-message {% if message.tags == 'error' %}account-message--error{% endif %}"><span aria-hidden="true">{% if message.tags == 'error' %}!{% else %}✓{% endif %}</span>{{ message }}</p>{% endfor %}</div>{% endif %}

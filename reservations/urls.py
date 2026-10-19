@@ -7,6 +7,7 @@ from . import views
 app_name = "reservations"
 
 urlpatterns = [
+    path("confirmada/<int:reserva_id>/", views.reserva_confirmada, name="reserva_confirmada"),
     path(
         "mis-reservas/",
         views.mis_reservas,

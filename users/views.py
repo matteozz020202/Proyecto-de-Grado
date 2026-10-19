@@ -6,6 +6,7 @@ from .navigation import is_admin, login_destination
 from .forms import LoginForm, ProfileForm, RegistrationForm
 from django.contrib.auth.models import Group
 from django.db import transaction
+from django.views.decorators.cache import never_cache
 from courts.models import Court
 
 
@@ -30,6 +31,7 @@ def court_image_url(court):
     return None
 
 
+@never_cache
 def login_view(request):
     next_url = request.POST.get("next", request.GET.get("next", ""))
     if request.user.is_authenticated:
@@ -91,6 +93,7 @@ def profile_view(request):
     return render(request, "users/account_form.html", {"form": form, "title": "Mi perfil", "profile": True})
 
 
+@never_cache
 def register_view(request):
     if request.user.is_authenticated:
         return redirect(login_destination(request, request.user))

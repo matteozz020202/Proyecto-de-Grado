@@ -1,0 +1,52 @@
+.availability-back { display: inline-block; color: var(--home-muted); padding: 8px 0; margin-bottom: 20px; font-size: 14px; }
+.availability-back:hover { color: var(--brand-lime); }
+.availability-layout { display: grid; grid-template-columns: minmax(0,.85fr) minmax(0,1.3fr); align-items: start; gap: 24px; }
+.court-overview, .availability-panel { min-width: 0; border: 1px solid var(--home-border); border-radius: 24px; padding: 26px; background: rgba(12,25,13,.86); }
+.availability-image, .court-placeholder { width: 100%; height: auto; aspect-ratio: 1.5; border-radius: 18px; margin-bottom: 24px; }
+.availability-image { object-fit: cover; }
+.court-placeholder { display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 16px; background: radial-gradient(ellipse at 50% 70%,rgba(50,255,0,.09),transparent 75%), #101b11; border: 1px solid var(--home-border); color: var(--home-muted); font-size: 13px; }
+.court-placeholder svg { width: 80px; height: 55px; color: var(--brand-lime); stroke-width: 1; }
+[hidden] { display: none !important; }
+.court-overview h1 { font-size: clamp(30px,3vw,42px); line-height: 1.1; margin: 0 0 16px; letter-spacing: -.04em; overflow-wrap: anywhere; }
+.court-venue { font-size: 18px; line-height: 1.5; }
+.court-venue:hover { color: var(--brand-lime); }
+.court-location { color: var(--home-muted); line-height: 1.7; font-size: 14px; margin: 8px 0 24px; overflow-wrap: anywhere; }
+.court-metrics { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px; border-top: 1px solid var(--home-border); padding-top: 18px; }
+.court-metrics > div { padding: 18px 14px; border: 1px solid var(--home-border); border-radius: 14px; background: rgba(67,83,55,.13); }
+.court-metrics strong { display: block; font-size: clamp(18px,1.8vw,24px); margin-bottom: 8px; overflow-wrap: anywhere; }
+.court-metrics span { font-size: 12px; color: var(--home-muted); }
+.court-description { line-height: 1.7; color: var(--home-muted); font-size: 14px; overflow-wrap: anywhere; margin: 24px 0 0; }
+.availability-panel h2 { font-size: clamp(26px,2.5vw,36px); margin: 0 0 10px; letter-spacing: -.04em; }
+.availability-intro { color: #dce2d7; font-size: 16px; line-height: 1.6; margin: 0 0 26px; }
+.availability-form { display: flex; gap: 16px; align-items: end; flex-wrap: wrap; }
+.availability-form > div { flex: 1 1 230px; min-width: 0; }
+.availability-form label { display: block; margin-bottom: 12px; font-size: 14px; }
+.availability-form input { font: inherit; color: white; color-scheme: dark; background: #182219; border: 1px solid rgba(255,255,255,.22); min-height: 48px; border-radius: 12px; padding: 12px; width: 100%; min-width: 0; }
+.availability-form button { font-size: 13px; cursor: pointer; }
+.available-times { border-top: 1px solid var(--home-border); margin-top: 28px; padding-top: 26px; }
+.available-times h3 { margin: 0 0 8px; font-size: 21px; }
+.selected-date, .availability-note { color: var(--home-muted); font-size: 13px; line-height: 1.6; }
+.availability-note { font-size: 12px; margin-bottom: 20px; }
+.time-grid { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 10px; }
+.time-slot { padding: 14px 6px; border: 1px solid rgba(255,255,255,.22); border-radius: 11px; background: rgba(38,53,35,.35); text-align: center; font-size: 14px; min-height: 48px; transition: border-color 250ms ease, background-color 250ms ease, color 250ms ease; }
+.time-slot:hover { border-color: var(--brand-lime); background: rgba(50,255,0,.08); }
+.time-slot[aria-current='true'] { background: var(--brand-lime); color: #101b0b; border-color: var(--brand-lime); font-weight: 700; }
+.booking-summary { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1.2fr); gap: 24px; border-radius: 16px; padding: 22px; margin-top: 28px; border: 1px solid rgba(50,255,0,.2); background: linear-gradient(135deg,rgba(50,255,0,.08),rgba(47,63,35,.25)); animation: summary-enter 250ms ease both; }
+.booking-selection { min-width: 0; }
+.booking-selection h3 { margin: 0 0 12px; font-size: 19px; }
+.booking-selection p { font-size: 13px; color: var(--home-muted); line-height: 1.6; }
+.booking-selection strong { font-size: 15px; }
+.booking-values { border-left: 1px solid var(--home-border); padding-left: 24px; min-width: 0; }
+.booking-values dl { margin: 0 0 20px; }
+.booking-values dl > div { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; margin-bottom: 12px; font-size: 12px; }
+.booking-values dt { color: var(--home-muted); }
+.booking-values dd { margin: 0; font-weight: 700; }
+.booking-values .button { width: 100%; font-size: 13px; }
+.availability-error, .availability-empty { padding: 20px; border-radius: 14px; background: rgba(55,69,43,.2); margin-top: 24px; font-size: 14px; line-height: 1.7; color: var(--home-muted); }
+.availability-error { color: #ffcec8; border: 1px solid #ffcec855; }
+@keyframes summary-enter { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+@media(max-width:1100px) { .availability-layout { grid-template-columns: minmax(0,.85fr) minmax(0,1.2fr); gap: 20px; } .court-overview,.availability-panel { padding: 20px; } .booking-summary { grid-template-columns: minmax(0,1fr); gap: 16px; } .booking-values { border-left: 0; padding-left: 0; border-top: 1px solid var(--home-border); padding-top: 18px; } }
+@media(max-width:850px) { .availability-layout { grid-template-columns: minmax(0,1fr); } .availability-image,.court-placeholder { aspect-ratio: 2; } }
+@media(max-width:600px) { .availability-form { flex-direction: column; align-items: stretch; } .availability-form > div { flex-basis: auto; } .availability-form button { width: 100%; } .time-grid { grid-template-columns: repeat(3,minmax(0,1fr)); gap: 8px; } .time-slot { font-size: 12px; padding-inline: 2px; } .court-overview,.availability-panel { padding: 18px; } .booking-summary { padding: 18px; } }
+@media(max-width:350px) { .time-grid { grid-template-columns: repeat(2,minmax(0,1fr)); } }
+@media(prefers-reduced-motion:reduce) { .time-slot { transition: none; } .booking-summary { animation: none; } }

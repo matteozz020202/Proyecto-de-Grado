@@ -1,6 +1,6 @@
 {% load static i18n %}
 <!DOCTYPE html>
-<html lang="es">
+<html lang="es" class="index-page">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -22,9 +22,9 @@
     </section>
     <main class="main-home" id="home-principal" tabindex="-1">
         <div class="home-shell">
-            <nav class="home-nav" aria-label="Navegación principal">
+            <nav class="home-nav{% if not request.user.is_authenticated %} home-nav--public{% endif %}" aria-label="Navegación principal">
                 <a href="{% url 'users:home' %}#home-principal" class="nav-brand" aria-label="Cancha Lista, inicio"><span class="brand-wordmark"><img src="{% static 'users/images/logo-horizontal.png' %}" alt="Cancha Lista" width="1366" height="768"></span></a>
-                <div class="nav-links">{% include "users/partials/navigation_links.html" %}</div>
+                <div class="nav-links">{% if request.user.is_authenticated %}{% include "users/partials/navigation_links.html" %}{% else %}<a href="{% url 'users:login' %}">Iniciar sesión</a>{% endif %}</div>
                 {% if request.user.is_authenticated %}
                 <details class="account-menu">
                     <summary aria-label="Opciones de la cuenta de {{ request.user.username }}"><span class="account-avatar" aria-hidden="true">{{ request.user.username|slice:':1'|upper }}</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></summary>
