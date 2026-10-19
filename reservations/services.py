@@ -6,7 +6,7 @@ from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.utils import timezone
 
-from courts.models import CourtSchedule
+from courts.models import Court, CourtSchedule
 from reservations.models import Reservation, Payment
 
 
@@ -337,56 +337,45 @@ def create_pending_reservation(
     return reservation
 
 @transaction.atomic
-def create_admin_reservation(
-    user,
-    court,
-    reservation_date,
-    start_time,
-    end_time,
-    guest_name="",
-    guest_phone="",
-):
-    """
-    Crea una reserva manual desde administración.
-
-    Puede pertenecer a un usuario registrado o
-    a un cliente presencial sin cuenta.
-    """
-
-    guest_name = (guest_name or "").strip()
-    guest_phone = (guest_phone or "").strip()
+def create_confirmed_reservation(user,court,reservation_date,start_time,end_time,guest_name="",guest_phone="",*,apply_deposit=False):
+    guest_name=(guest_name or "").strip()
+    guest_phone=(guest_phone or "").strip()
 
     if user is None and not guest_name:
-        raise ValidationError(
-            "Debes seleccionar un usuario registrado "
-            "o indicar el nombre del cliente sin cuenta."
-        )
+        raise ValidationError("Debes seleccionar un usuario registrado o indicar el nombre del cliente sin cuenta.")
 
     if user is not None:
-        guest_name = ""
-        guest_phone = ""
+        guest_name=""
+        guest_phone=""
 
-    reservation = create_pending_reservation(
-        user=user,
-        court=court,
-        reservation_date=reservation_date,
-        start_time=start_time,
-        end_time=end_time,
-        guest_name=guest_name,
-        guest_phone=guest_phone,
+    court=Court.objects.select_for_update().get(pk=court.pk)
+    reservation=create_pending_reservation(
+        user=user,court=court,reservation_date=reservation_date,
+        start_time=start_time,end_time=end_time,
+        guest_name=guest_name,guest_phone=guest_phone
     )
 
-    reservation.reservation_status = "CONFIRMED"
-    reservation.hold_expires_at = None
+    reservation.reservation_status="CONFIRMED"
+    reservation.hold_expires_at=None
 
-    reservation.save(
-        update_fields=[
-            "reservation_status",
-            "hold_expires_at",
-        ]
-    )
+    if not apply_deposit:
+        reservation.deposit_required=0
+        reservation.remaining_amount=reservation.total_amount
 
+    reservation.save(update_fields=[
+        "reservation_status","hold_expires_at",
+        "deposit_required","remaining_amount"
+    ])
     return reservation
+
+
+def create_admin_reservation(user,court,reservation_date,start_time,end_time,guest_name="",guest_phone=""):
+    return create_confirmed_reservation(
+        user,court,reservation_date,start_time,end_time,
+        guest_name=guest_name,guest_phone=guest_phone,
+        apply_deposit=True
+    )
+
 
 @transaction.atomic
 def process_simulated_payment(
@@ -542,24 +531,9 @@ def cancel_reservation(
 
 @transaction.atomic
 def complete_reservation(reservation):
-    reservation = (
-        Reservation.objects
-        .select_for_update()
-        .get(pk=reservation.pk)
-    )
-
-    if reservation.reservation_status != "CONFIRMED":
-        raise ValidationError(
-            "Solo las reservas confirmadas "
-            "pueden marcarse como completadas."
-        )
-
-    reservation.reservation_status = "COMPLETED"
-
-    reservation.save(
-        update_fields=[
-            "reservation_status"
-        ]
-    )
-
+    reservation=Reservation.objects.select_for_update().get(pk=reservation.pk)
+    if reservation.reservation_status!="CONFIRMED":
+        raise ValidationError("Solo las reservas confirmadas pueden marcarse como completadas.")
+    reservation.reservation_status="COMPLETED"
+    reservation.save(update_fields=["reservation_status"])
     return reservation

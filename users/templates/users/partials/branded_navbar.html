@@ -2,14 +2,15 @@
 <nav class="home-nav catalog-nav" aria-label="Navegación principal">
 <a class="nav-brand" href="{% url 'users:home' %}" aria-label="Cancha Lista, inicio"><span class="brand-wordmark"><img src="{% static 'users/images/logo-horizontal.png' %}" alt="Cancha Lista" width="1366" height="768"></span></a>
 <div class="nav-links">
-<a href="{% url 'users:home' %}">Inicio</a>
-<a href="{% url 'courts:establecimientos' %}" aria-current="page">Establecimientos</a>
-{% if navigation_admin %}<a href="{% url 'reservations:admin_dashboard' %}">Dashboard</a><a href="{% url 'reservations:admin_reservas' %}">Reservas</a>
+{% if not availability_nav and not account_nav and not hide_home %}<a href="{% url 'users:home' %}">Inicio</a>{% endif %}
+<a href="{% url 'courts:establecimientos' %}" {% if not account_nav %}aria-current="page"{% endif %}>Establecimientos</a>
+{% if account_nav %}<a href="{% url 'reservations:mis_reservas' %}" {% if request.resolver_match.url_name == 'mis_reservas' %}aria-current="page"{% endif %}>Mis reservas</a><a href="{% url 'users:profile' %}" {% if request.resolver_match.app_name == 'users' %}aria-current="page"{% endif %}>Mi perfil</a><form method="post" action="{% url 'users:logout' %}">{% csrf_token %}<button class="account-logout" type="submit">Cerrar sesión</button></form>
+{% elif navigation_admin %}<a href="{% url 'reservations:admin_dashboard' %}">Dashboard</a><a href="{% url 'reservations:admin_reservas' %}">Reservas</a>
 {% elif request.user.is_authenticated %}<a href="{% url 'reservations:mis_reservas' %}">Mis reservas</a><a href="{% url 'users:profile' %}">Mi perfil</a>
-{% else %}<a href="{% url 'users:login' %}">Iniciar sesión</a><a href="{% url 'users:register' %}">Registrarse</a>{% endif %}
+{% else %}<a href="{% url 'users:login' %}">Iniciar sesión</a>{% if not availability_nav %}<a href="{% url 'users:register' %}">Registrarse</a>{% endif %}{% endif %}
 </div>
 {% if request.user.is_authenticated %}
 <details class="account-menu"><summary aria-label="Opciones de la cuenta de {{ request.user.username }}"><span class="account-avatar" aria-hidden="true">{{ request.user.username|slice:':1'|upper }}</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></summary>
-<div class="account-panel"><p class="account-name">{{ request.user.username }}</p><p class="account-role">{% if navigation_admin %}Administrador{% else %}Usuario{% endif %}</p><a href="{% url 'users:home' %}">Inicio</a><a href="{% url 'users:profile' %}">Mi perfil</a><form method="post" action="{% url 'users:logout' %}">{% csrf_token %}<button type="submit">Cerrar sesión</button></form></div>
+<div class="account-panel"><p class="account-name">{{ request.user.username }}</p><p class="account-role">{% if navigation_admin %}Administrador{% else %}Usuario{% endif %}</p>{% if not account_nav %}<a href="{% url 'users:home' %}">Inicio</a>{% endif %}<a href="{% url 'users:profile' %}">Mi perfil</a><form method="post" action="{% url 'users:logout' %}">{% csrf_token %}<button type="submit">Cerrar sesión</button></form></div>
 </details>{% endif %}
 </nav>

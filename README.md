@@ -247,3 +247,13 @@ La ruta existente `/reservar/<venue_id>/canchas/` muestra un hero con nombre, di
 La consulta `Court.objects.filter(venue=venue, is_active=True).order_by("court_name", "court_id")` garantiza que no aparezcan canchas de otros establecimientos ni inactivas. La pantalla pública utiliza dos consultas en el caso anónimo; no consulta relaciones por tarjeta. Venue inexistente o inactivo produce 404. Sin canchas activas se muestra un estado vacío. No se añaden modelos, galería, servicios, clasificación deportiva, dimensiones, filtros ni afirmaciones de disponibilidad temporal sin respaldo.
 
 El CTA abre `/reservar/cancha/<court_id>/disponibilidad/` sin login. El visitante selecciona fecha y horario antes de autenticarse para reservar; el usuario autenticado continúa directamente. Se conservan los permisos y la landing administrativa del dashboard. Validación: 159 pruebas Django, incluidos aislamiento entre establecimientos y número de consultas; revisión Chromium de tres roles a 375, 768 y 1440 px, navegación a disponibilidad, fondo, menú y respaldo de fotos. La pantalla de disponibilidad mantiene su diseño anterior, pendiente de una etapa visual específica.
+
+### Confirmación directa de reservas — MVP sin pagos
+
+El POST de `/reservas/nueva/<court_id>/` confirma directamente y redirige a `/reservas/confirmada/<reservation_id>/`. La vista final requiere login, propiedad y estado CONFIRMED. El resumen y el éxito comparten `reservations/booking_base.html`, estilos oscuros, componentes de disponibilidad y el navbar autenticado existente.
+
+`create_confirmed_reservation` reutiliza las validaciones de creación existentes dentro de una transacción, bloquea la fila Court al crear y guarda CONFIRMED sin vencimiento temporal. Para el flujo público no exige abono (`deposit_required=0`) y mantiene el importe sin cobrar; no crea Payment ni simula aprobación. El contrato administrativo conserva su cálculo anterior mediante el mismo servicio. No cambia modelos ni migra reservas históricas.
+
+El usuario ve valor total y una nota explícita de que pagos y abonos están previstos para futuras versiones. Mis reservas no ofrece enlaces a simulación de pago. La ruta antigua de pagos se conserva por compatibilidad, fuera del nuevo recorrido. La disponibilidad conserva sus reglas y su presentación anterior de abono, pendiente de armonizar el contenido con la nueva política en una tarea separada.
+
+Validación: 175 pruebas Django aisladas, incluidos conflictos, CSRF, propiedad, ausencia de pagos y reenvíos; recorrido real en Chrome a 375, 768 y 1440 px con POST de confirmación, recarga de éxito y Mis reservas. Las pruebas no crean reservas en Neon.

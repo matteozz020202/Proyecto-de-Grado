@@ -1,0 +1,8 @@
+{% extends 'reservations/booking_base.html' %}{% load i18n %}
+{% block title %}Reserva confirmada{% endblock %}
+{% block content %}<section class="confirmation-card" aria-labelledby="confirmation-title">
+<header class="confirmation-header"><span class="confirmation-check" aria-hidden="true">✓</span><h1 id="confirmation-title">¡Reserva confirmada!</h1><p>Tu horario ha sido reservado correctamente.</p><span class="confirmation-badge">Confirmada</span></header>
+<dl class="checkout-facts confirmation-facts"><div><dt>Número de reserva</dt><dd>#{{ reserva.pk }}</dd></div><div><dt>Establecimiento</dt><dd>{{ reserva.court.venue.venue_name }}</dd></div><div><dt>Cancha</dt><dd>{{ reserva.court.court_name }}</dd></div><div><dt>Fecha</dt><dd>{% language 'es-co' %}{{ reserva.reservation_date|date:'l, j \d\e F \d\e Y'|capfirst }}{% endlanguage %}</dd></div><div><dt>Horario</dt><dd>{{ reserva.start_time|time:'H:i' }} – {{ reserva.end_time|time:'H:i' }}</dd></div><div><dt>Valor total</dt><dd class="confirmation-price">{% language 'es-co' %}${{ reserva.total_amount|floatformat:'0g' }}{% endlanguage %} <small>COP</small></dd></div></dl>
+<p class="checkout-note">El módulo de pagos y abonos aún no está disponible en este MVP. Estamos trabajando en su implementación para próximas versiones. Por ahora, tu reserva queda registrada correctamente en el sistema.</p>
+<div class="checkout-actions confirmation-actions"><a class="button button-primary" href="{% url 'reservations:mis_reservas' %}">Ver mis reservas</a><a class="button button-outline" href="{% url 'courts:establecimientos' %}">Explorar más canchas <span aria-hidden="true">→</span></a></div>
+</section>{% endblock %}

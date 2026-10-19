@@ -30,7 +30,7 @@ from .services import (
     calculate_reservation_values,
     cancel_reservation,
     create_admin_reservation,
-    create_pending_reservation,
+    create_confirmed_reservation,
     expire_pending_reservations,
     get_availability,
     process_simulated_payment,
@@ -207,7 +207,7 @@ def resumen_reserva(
     # Crear reserva.
     if request.method == "POST":
         try:
-            reservation = create_pending_reservation(
+            reservation = create_confirmed_reservation(
                 user=request.user,
                 court=court,
                 reservation_date=reservation_date,
@@ -235,12 +235,11 @@ def resumen_reserva(
 
         messages.success(
             request,
-            "Reserva creada. Tienes 15 minutos "
-            "para realizar el abono."
+            "Tu reserva fue confirmada correctamente."
         )
 
         return redirect(
-            "reservations:pagar_reserva",
+            "reservations:reserva_confirmada",
             reserva_id=reservation.reservation_id
         )
 
@@ -255,6 +254,15 @@ def resumen_reserva(
             "valores": values,
         }
     )
+
+
+@login_required(login_url="users:login")
+def reserva_confirmada(request, reserva_id):
+    reservation = get_object_or_404(
+        Reservation.objects.select_related("court", "court__venue"),
+        pk=reserva_id, user=request.user, reservation_status="CONFIRMED",
+    )
+    return render(request, "reservations/reserva_confirmada.html", {"reserva": reservation})
 
 
 @login_required(login_url="users:login")
