@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
@@ -13,8 +13,10 @@ from django.utils import timezone
 from django.views.decorators.http import require_POST
 from django.contrib.auth import get_user_model
 from pydantic import ValidationError as ContractValidationError
+from django.utils.dateparse import parse_date
 
 from courts.models import Court, Venue
+from courts.access import courts_for_user
 from users.decorators import admin_required
 
 from .models import Reservation
@@ -32,6 +34,7 @@ from .services import (
     expire_pending_reservations,
     get_availability,
     process_simulated_payment,
+    complete_reservation,
 )
 
 
@@ -437,8 +440,7 @@ def admin_crear_reserva(request):
     )
 
     courts = (
-        Court.objects
-        .select_related("venue")
+        courts_for_user(request.user)
         .filter(is_active=True)
         .order_by(
             "venue__venue_name",
@@ -451,6 +453,21 @@ def admin_crear_reserva(request):
         "usuario",
         ""
     )
+
+    client_type = request.POST.get(
+    "tipo_cliente",
+    "REGISTERED"
+    )
+
+    guest_name = request.POST.get(
+        "guest_name",
+        ""
+    ).strip()
+
+    guest_phone = request.POST.get(
+        "guest_phone",
+        ""
+    ).strip()
 
     selected_court = request.POST.get(
         "cancha",
@@ -479,7 +496,6 @@ def admin_crear_reserva(request):
         # ---------------------------------
 
         if not all([
-            selected_user,
             selected_court,
             selected_date,
             selected_start,
@@ -487,7 +503,34 @@ def admin_crear_reserva(request):
         ]):
             messages.error(
                 request,
-                "Debes completar todos los campos."
+                "Debes completar la cancha, fecha y horario."
+            )
+
+        elif client_type not in [
+            "REGISTERED",
+            "GUEST",
+        ]:
+            messages.error(
+                request,
+                "El tipo de cliente seleccionado no es válido."
+            )
+
+        elif (
+            client_type == "REGISTERED"
+            and not selected_user
+        ):
+            messages.error(
+                request,
+                "Debes seleccionar un usuario registrado."
+            )
+
+        elif (
+            client_type == "GUEST"
+            and not guest_name
+        ):
+            messages.error(
+                request,
+                "Debes indicar el nombre del cliente sin cuenta."
             )
 
         else:
@@ -498,18 +541,26 @@ def admin_crear_reserva(request):
                 # Usuario
                 # -------------------------
 
-                user = User.objects.get(
-                    pk=selected_user,
-                    is_active=True,
-                )
+                if client_type == "REGISTERED":
+                    user = User.objects.get(
+                        pk=selected_user,
+                        is_active=True,
+                    )
+
+                    reservation_guest_name = ""
+                    reservation_guest_phone = ""
+
+                else:
+                    user = None
+                    reservation_guest_name = guest_name
+                    reservation_guest_phone = guest_phone
 
                 # -------------------------
                 # Cancha
                 # -------------------------
 
                 court = (
-                    Court.objects
-                    .select_related("venue")
+                    courts_for_user(request.user)
                     .get(
                         court_id=selected_court,
                         is_active=True,
@@ -558,6 +609,8 @@ def admin_crear_reserva(request):
                     reservation_date=reservation_date,
                     start_time=start_time,
                     end_time=end_time,
+                    guest_name=reservation_guest_name,
+                    guest_phone=reservation_guest_phone,
                 )
 
             except User.DoesNotExist:
@@ -601,9 +654,7 @@ def admin_crear_reserva(request):
                     )
                 )
 
-                return redirect(
-                    "reservations:admin_dashboard"
-                )
+                return redirect("reservations:admin_reservas")
 
     return render(
         request,
@@ -613,6 +664,9 @@ def admin_crear_reserva(request):
             "canchas": courts,
 
             "usuario_seleccionado": selected_user,
+            "tipo_cliente": client_type,
+            "guest_name": guest_name,
+            "guest_phone": guest_phone,
             "cancha_seleccionada": selected_court,
             "fecha_seleccionada": selected_date,
             "hora_inicio_seleccionada": selected_start,
@@ -629,7 +683,10 @@ def admin_crear_reserva(request):
 def admin_dashboard(request):
     now = timezone.localtime()
     today = now.date()
-    form = DashboardFilterForm(request.GET)
+    form = DashboardFilterForm(
+        request.GET,
+        user=request.user
+    )
     if not form.is_valid():
         return render(request, "reservations/admin_dashboard.html", {
             "hoy": today, "form": form, "filtros_validos": False,
@@ -638,18 +695,16 @@ def admin_dashboard(request):
     filters = form.cleaned_data
     data_source = filters["origen"]
     start_date, end_date = filters["fecha_inicio"], filters["fecha_fin"]
-    courts, source_reservations = filtered_scope(filters)
+    courts, source_reservations = filtered_scope(
+        filters,
+        request.user
+    )
     reservations = source_reservations.filter(reservation_date__range=(start_date, end_date))
 
     analytics = dashboard_data(courts, reservations, start_date, end_date, filters["tipo"], data_source)
     status_counts = analytics["status_counts"]
 
-    table_reservations = reservations.select_related("user", "court", "court__venue").order_by("-reservation_date", "-start_time", "-pk")
-    paginator = Paginator(table_reservations, 25)
-    reservation_page = paginator.get_page(request.GET.get("page"))
-    params = request.GET.copy()
-    if "page" in params:
-        params.pop("page")
+
 
 
     context = {
@@ -677,8 +732,6 @@ def admin_dashboard(request):
         "datos_sinteticos": data_source == "SYNTHETIC" or reservations.filter(data_source="SYNTHETIC").exists(),
         "origen": data_source,
         "origenes": Reservation.DATA_SOURCES,
-        "pagina_reservas": reservation_page,
-        "querystring": params.urlencode(),
         "total_establecimientos": Venue.objects.filter(
             pk__in=courts.values("venue_id"), is_active=True,
         ).count(),
@@ -724,7 +777,10 @@ def admin_dashboard(request):
 @admin_required
 @require_POST
 def admin_dashboard_analysis(request):
-    form = DashboardFilterForm(request.POST)
+    form = DashboardFilterForm(
+        request.POST,
+        user=request.user
+    )
     error = None
     status = 200
     context = {}
@@ -734,7 +790,10 @@ def admin_dashboard_analysis(request):
         error, status = "Revisa el establecimiento, la cancha y las fechas; vuelve a aplicar los filtros.", 400
     else:
         filters = form.cleaned_data
-        courts, reservations = filtered_scope(filters)
+        courts, reservations = filtered_scope(
+            filters,
+            request.user
+        )
         try:
             analytics = dashboard_data(courts, reservations, filters["fecha_inicio"], filters["fecha_fin"],
                                        filters["tipo"], filters["origen"])
@@ -761,17 +820,159 @@ def admin_dashboard_analysis(request):
     html = render_to_string("reservations/dashboard_insights_result.html", context, request=request)
     return JsonResponse({"state": "ERROR" if error else "SUCCESS", "html": html}, status=status)
 
+@login_required(login_url="users:login")
+@admin_required
+def admin_reservas(request):
+    allowed_courts = courts_for_user(
+        request.user
+    )
+
+    reservations = (
+        Reservation.objects
+        .select_related(
+            "user",
+            "court",
+            "court__venue"
+        )
+        .filter(
+            court__in=allowed_courts
+        )
+        .order_by(
+            "-reservation_date",
+            "-start_time"
+        )
+    )
+
+    selected_court = request.GET.get(
+        "cancha",
+        ""
+    )
+
+    selected_status = request.GET.get(
+        "estado",
+        ""
+    )
+
+    start_date_raw = request.GET.get(
+        "fecha_inicio",
+        ""
+    )
+
+    end_date_raw = request.GET.get(
+        "fecha_fin",
+        ""
+    )
+
+    if selected_court:
+        reservations = reservations.filter(
+            court_id=selected_court
+        )
+
+    allowed_statuses = {
+        "PENDING_PAYMENT",
+        "CONFIRMED",
+        "COMPLETED",
+        "CANCELLED",
+        "EXPIRED",
+    }
+
+    if selected_status in allowed_statuses:
+        reservations = reservations.filter(
+            reservation_status=selected_status
+        )
+
+    start_date = parse_date(
+        start_date_raw
+    )
+
+    end_date = parse_date(
+        end_date_raw
+    )
+
+    if start_date:
+        reservations = reservations.filter(
+            reservation_date__gte=start_date
+        )
+
+    if end_date:
+        reservations = reservations.filter(
+            reservation_date__lte=end_date
+        )
+
+    paginator = Paginator(
+        reservations,
+        25
+    )
+
+    reservation_page = paginator.get_page(
+        request.GET.get("page")
+    )
+
+    params = request.GET.copy()
+
+    if "page" in params:
+        params.pop("page")
+
+    context = {
+        "pagina_reservas": reservation_page,
+        "courts": allowed_courts.order_by(
+            "venue__venue_name",
+            "court_name"
+        ),
+        "selected_court": selected_court,
+        "selected_status": selected_status,
+        "fecha_inicio": start_date_raw,
+        "fecha_fin": end_date_raw,
+        "querystring": params.urlencode(),
+    }
+
+    return render(
+        request,
+        "reservations/admin_reservas.html",
+        context
+    )
+
 @admin_required
 def admin_detalle_reserva(request, reserva_id):
+    allowed_courts = courts_for_user(
+        request.user
+    )
+
     reservation = get_object_or_404(
         Reservation.objects
-        .select_related("user", "court", "court__venue")
-        .prefetch_related("payments"),
+        .select_related(
+            "user",
+            "court",
+            "court__venue"
+        )
+        .prefetch_related(
+            "payments"
+        )
+        .filter(
+            court__in=allowed_courts
+        ),
         reservation_id=reserva_id
     )
+
+    if request.method=="POST":
+        action=request.POST.get("action")
+        try:
+            if action=="complete":
+                complete_reservation(reservation); success="La reserva fue marcada como completada."
+            elif action=="cancel":
+                cancel_reservation(reservation); success="La reserva fue cancelada correctamente."
+            else:
+                raise ValidationError("La acción seleccionada no es válida.")
+        except ValidationError as error:
+            messages.error(request,error.messages[0])
+        else:
+            messages.success(request,success)
+        return redirect("reservations:admin_detalle_reserva",reserva_id=reservation.reservation_id)
 
     return render(
         request,
         "reservations/admin_detalle_reserva.html",
-        {"reserva": reservation}
+        {
+            "reserva": reservation
+        }
     )

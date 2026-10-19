@@ -12,7 +12,7 @@
 
 <main class="container py-4">
     <div class="d-flex justify-content-between align-items-center mb-4">
-        <div><h2 class="mb-1">Reserva #{{ reserva.reservation_id }}</h2><p class="text-muted mb-0">Detalle administrativo de la reserva.</p></div>
+        <div><h2 class="mb-1">Reserva #{{ reserva.reservation_id }}</h2><p class="text-muted mb-0">Detalle administrativo de la reserva.</p><a href="{% url 'reservations:admin_reservas' %}" class="btn btn-outline-secondary mb-3">← Volver a reservas</a></div>
         {% if reserva.reservation_status == "CONFIRMED" %}<span class="badge bg-success fs-6">Confirmada</span>
         {% elif reserva.reservation_status == "PENDING_PAYMENT" %}<span class="badge bg-warning text-dark fs-6">Pendiente</span>
         {% elif reserva.reservation_status == "COMPLETED" %}<span class="badge bg-primary fs-6">Completada</span>
@@ -26,7 +26,24 @@
             <div class="card shadow-sm"><div class="card-body">
                 <h3 class="h5 mb-3">Información de la reserva</h3>
                 <table class="table table-sm mb-0">
-                    <tr><th>Usuario</th><td>{{ reserva.user.username }}</td></tr>
+                    <tr>
+                        <th>Cliente</th>
+                        <td>
+                            {% if reserva.user %}
+                                {{ reserva.user.username }}
+                            {% else %}
+                                {{ reserva.guest_name }}
+                                <span class="badge bg-secondary ms-2">
+                                    Sin cuenta
+                                </span>
+                                {% if reserva.guest_phone %}
+                                    <div class="text-muted small mt-1">
+                                        Teléfono: {{ reserva.guest_phone }}
+                                    </div>
+                                {% endif %}
+                            {% endif %}
+                        </td>
+                    </tr>
                     <tr><th>Establecimiento</th><td>{{ reserva.court.venue.venue_name }}</td></tr>
                     <tr><th>Cancha</th><td>{{ reserva.court.court_name }}</td></tr>
                     <tr><th>Fecha</th><td>{{ reserva.reservation_date|date:"d/m/Y" }}</td></tr>
@@ -54,6 +71,18 @@
             </div></div>
         </div>
     </div>
+    {% if reserva.reservation_status == "CONFIRMED" %}
+    <div class="mt-4 d-flex gap-2 flex-wrap">
+        <form method="post" onsubmit="return confirm('¿Marcar esta reserva como completada?');">
+            {% csrf_token %}<input type="hidden" name="action" value="complete">
+            <button type="submit" class="btn btn-success">Marcar como completada</button>
+        </form>
+        <form method="post" onsubmit="return confirm('¿Cancelar esta reserva? Esta acción liberará el horario.');">
+            {% csrf_token %}<input type="hidden" name="action" value="cancel">
+            <button type="submit" class="btn btn-danger">Cancelar reserva</button>
+        </form>
+    </div>
+    {% endif %}
 </main>
 </body>
 </html>

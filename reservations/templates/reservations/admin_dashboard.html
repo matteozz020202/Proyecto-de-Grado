@@ -15,7 +15,6 @@
         .kpi-value { font-size: clamp(1.2rem, 1.6vw, 1.8rem); overflow-wrap: anywhere; }
         .kpi-money { font-size: clamp(0.9rem, 1.3vw, 1.4rem); }
         .court-table { min-width: 640px; }
-        .reservation-table { min-width: 1250px; }
         .chart-card { height: 100%; }
         @media (max-width: 575px) { .chart-frame { height: 240px; } }
     </style>
@@ -343,8 +342,6 @@
             </tr>{% empty %}<tr><td colspan="5">No hay canchas para los filtros seleccionados.</td></tr>{% endfor %}</tbody>
         </table></div>
     </div></section>
-
-    <section id="reservas-administrativas">{% include 'reservations/dashboard_reservations.html' with title='Reservas del período' reservas=pagina_reservas %}</section>
 
     <details class="card card-body mb-4">
         <summary>Detalle económico y operativo del contexto</summary>

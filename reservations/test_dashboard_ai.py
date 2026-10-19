@@ -25,7 +25,11 @@ from .test_ai import example_output
 class DashboardAITests(TestCase):
     def setUp(self):
         self.user = User.objects.create_user(username="staff", is_staff=True, email="private@example.test")
-        self.venue = Venue.objects.create(venue_name="Arena", address="Calle 1")
+        self.venue = Venue.objects.create(
+            venue_name="Arena",
+            address="Calle 1",
+            manager=self.user
+        )
         self.court = Court.objects.create(venue=self.venue, court_name="Cancha A", price_per_hour=120000)
         self.day = date(2026, 1, 5)
         self.clock = patch("django.utils.timezone.now", return_value=datetime(2026, 10, 4, 12, tzinfo=ZoneInfo("America/Bogota")))
@@ -58,14 +62,33 @@ class DashboardAITests(TestCase):
         return SimpleNamespace(status="completed", output=[], output_parsed=AIAnalysis.model_validate(output))
 
     def data(self, params=None):
-        form = DashboardFilterForm(params or self.params)
-        self.assertTrue(form.is_valid(), form.errors)
+        form = DashboardFilterForm(
+            params or self.params,
+            user=self.user
+        )
+        self.assertTrue(
+            form.is_valid(),
+            form.errors
+        )
         filters = form.cleaned_data
-        courts, reservations = filtered_scope(filters)
-        data = dashboard_data(courts, reservations, filters["fecha_inicio"], filters["fecha_fin"],
-                              filters["tipo"], filters["origen"])
-        return filters, data, courts, reservations
-
+        courts, reservations = filtered_scope(
+            filters,
+            self.user
+        )
+        data = dashboard_data(
+            courts,
+            reservations,
+            filters["fecha_inicio"],
+            filters["fecha_fin"],
+            filters["tipo"],
+            filters["origen"]
+        )
+        return (
+            filters,
+            data,
+            courts,
+            reservations
+        )
     def payload(self, params=None):
         return build_analysis_input(*self.data(params))
 
@@ -173,6 +196,12 @@ class DashboardAITests(TestCase):
         self.assertEqual(self.client.post(self.url, self.params).status_code, 302)
         self.factory.assert_not_called()
         normal.groups.add(Group.objects.create(name="Administrador"))
+        self.venue.manager = normal
+        self.venue.save(
+            update_fields=[
+                "manager"
+            ]
+        )
         self.assertEqual(self.client.post(self.url, self.params).status_code, 200)
 
     def test_post_requires_csrf(self):

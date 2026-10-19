@@ -1,0 +1,192 @@
+.admin-reservas-page {
+    --admin-green: #32ff00;
+    --admin-dark: #454b40;
+    --admin-dark-hover: #353a31;
+    --admin-bg: #f5f6f3;
+    --admin-surface: #ffffff;
+    --admin-border: #e2e5df;
+    --admin-text: #20241f;
+    --admin-muted: #6d726a;
+}
+
+body {
+    background: var(--admin-bg) !important;
+}
+
+.admin-page-header {
+    margin-bottom: 32px;
+}
+
+.admin-page-title {
+    color: var(--admin-text);
+    font-size: clamp(2rem, 3vw, 2.8rem);
+    font-weight: 800;
+    letter-spacing: -0.04em;
+    margin-bottom: 4px;
+}
+
+.admin-page-description {
+    color: var(--admin-muted);
+    margin-bottom: 0;
+}
+
+.admin-reservas-page .card {
+    border: 1px solid var(--admin-border);
+    border-radius: 22px;
+    background: var(--admin-surface);
+    box-shadow: 0 12px 35px rgba(35, 42, 33, 0.06) !important;
+}
+
+.admin-reservas-page .card-body {
+    padding: 24px;
+}
+
+.admin-reservas-page .form-label {
+    color: var(--admin-text);
+    font-size: 0.88rem;
+    font-weight: 700;
+    margin-bottom: 8px;
+}
+
+.admin-reservas-page .form-control,
+.admin-reservas-page .form-select {
+    min-height: 46px;
+    border: 1px solid #d8ddd5;
+    border-radius: 12px;
+    background-color: #fafbf9;
+    color: var(--admin-text);
+    box-shadow: none;
+}
+
+.admin-reservas-page .form-control:focus,
+.admin-reservas-page .form-select:focus {
+    border-color: var(--admin-green);
+    background-color: #ffffff;
+    box-shadow: 0 0 0 3px rgba(50, 255, 0, 0.12);
+}
+
+.admin-reservas-page .btn-primary {
+    border-color: var(--admin-green);
+    border-radius: 999px;
+    background: var(--admin-green);
+    color: #111111;
+    font-weight: 800;
+    padding: 10px 20px;
+}
+
+.admin-reservas-page .btn-primary:hover,
+.admin-reservas-page .btn-primary:focus {
+    border-color: #29db00;
+    background: #29db00;
+    color: #111111;
+}
+
+.admin-reservas-page .btn-dark {
+    min-height: 46px;
+    border-color: var(--admin-dark);
+    border-radius: 999px;
+    background: var(--admin-dark);
+    color: #ffffff;
+    font-weight: 700;
+}
+
+.admin-reservas-page .btn-dark:hover,
+.admin-reservas-page .btn-dark:focus {
+    border-color: var(--admin-dark-hover);
+    background: var(--admin-dark-hover);
+}
+
+.admin-reservas-page .btn-outline-secondary {
+    border-color: var(--admin-dark);
+    border-radius: 999px;
+    color: var(--admin-dark);
+    font-weight: 700;
+    padding-left: 16px;
+    padding-right: 16px;
+}
+
+.admin-reservas-page .btn-outline-secondary:hover {
+    border-color: var(--admin-dark);
+    background: var(--admin-dark);
+    color: #ffffff;
+}
+
+.admin-reservas-page .btn-outline-primary {
+    border-color: var(--admin-dark);
+    border-radius: 999px;
+    color: var(--admin-dark);
+    font-weight: 700;
+}
+
+.admin-reservas-page .btn-outline-primary:hover {
+    border-color: var(--admin-dark);
+    background: var(--admin-dark);
+    color: #ffffff;
+}
+
+.admin-reservas-page .reservation-table {
+    min-width: 1250px;
+    margin-bottom: 0;
+}
+
+.admin-reservas-page .reservation-table thead th {
+    padding: 14px 12px;
+    border-bottom: 0;
+    background: #f1f3ef;
+    color: var(--admin-text);
+    font-size: 0.82rem;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.admin-reservas-page .reservation-table tbody td {
+    padding: 14px 12px;
+    border-color: #edf0eb;
+    vertical-align: middle;
+}
+
+.admin-reservas-page .reservation-table tbody tr {
+    transition: background-color 0.2s ease;
+}
+
+.admin-reservas-page .reservation-table tbody tr:hover {
+    background: #f7fff5;
+}
+
+.admin-reservas-page .badge {
+    border-radius: 999px;
+    padding: 7px 10px;
+    font-weight: 700;
+}
+
+.admin-reservas-page .badge.bg-primary {
+    background: var(--admin-dark) !important;
+}
+
+.admin-reservas-page .pagination .page-link {
+    margin: 0 3px;
+    border-radius: 10px;
+    color: var(--admin-dark);
+}
+
+.admin-reservas-page .pagination .page-link:hover {
+    border-color: var(--admin-green);
+    background: var(--admin-green);
+    color: #111111;
+}
+
+@media (max-width: 767.98px) {
+    .admin-reservas-page {
+        padding-top: 28px !important;
+    }
+
+    .admin-reservas-page .card-body {
+        padding: 18px;
+    }
+
+    .admin-page-title {
+        font-size: 2rem;
+    }
+}

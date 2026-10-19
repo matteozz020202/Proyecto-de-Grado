@@ -16,7 +16,7 @@ from .models import Payment, Reservation
 class AnalyticsTests(TestCase):
     def setUp(self):
         self.user = User.objects.create_user(username="admin", is_staff=True)
-        self.venue = Venue.objects.create(venue_name="Arena", address="Calle 1")
+        self.venue = Venue.objects.create(venue_name="Arena",address="Calle 1",manager=self.user)
         self.court = Court.objects.create(venue=self.venue, court_name="A", price_per_hour=120000)
         self.day = date(2026, 1, 5)  # Lunes: isoweekday() == 1.
         clock = patch("django.utils.timezone.now",
@@ -170,32 +170,80 @@ class AnalyticsTests(TestCase):
             {"status": "COMPLETED", "label": "Completada", "count": 1},
         ])
         self.assertEqual(response.context["dashboard_data"]["analysis_context"]["court_ids"], [self.court.pk])
-        self.assertEqual(
-            list(response.context["pagina_reservas"]),
-            [chosen]
-        )
         self.assertContains(response, 'id="dashboard-chart-data"')
 
     def test_court_choices_are_scoped_to_venue_and_reject_foreign_courts(self):
-        other_venue = Venue.objects.create(venue_name="Otro venue", address="Calle 2")
-        other_court = Court.objects.create(venue=other_venue, court_name="Otra", price_per_hour=120000)
-        form = DashboardFilterForm({"establecimiento": str(self.venue.pk)})
+        other_venue = Venue.objects.create(
+            venue_name="Otro venue",
+            address="Calle 2"
+        )
+
+        other_court = Court.objects.create(
+            venue=other_venue,
+            court_name="Otra",
+            price_per_hour=120000
+        )
+
+        form = DashboardFilterForm(
+            {
+                "establecimiento": str(self.venue.pk)
+            },
+            user=self.user
+        )
+
         self.assertTrue(form.is_valid())
-        self.assertEqual(list(form.fields["cancha"].queryset), [self.court])
-        # El navegador dispone del catálogo para cambiar de venue sin enviar el formulario.
-        self.assertEqual({option["id"] for option in form.court_options},
-                         {str(self.court.pk), str(other_court.pk)})
-        invalid = DashboardFilterForm({"establecimiento": str(self.venue.pk), "cancha": str(other_court.pk)})
+        self.assertEqual(
+            list(form.fields["cancha"].queryset),
+            [self.court]
+        )
+
+        self.assertEqual(
+            {
+                option["id"]
+                for option in form.court_options
+            },
+            {
+                str(self.court.pk)
+            }
+        )
+
+        invalid = DashboardFilterForm(
+            {
+                "establecimiento": str(self.venue.pk),
+                "cancha": str(other_court.pk)
+            },
+            user=self.user
+        )
+
         self.assertFalse(invalid.is_valid())
-        self.assertIn("cancha", invalid.errors)
-        all_venues = DashboardFilterForm({})
-        self.assertEqual(all_venues.fields["cancha"].queryset.count(), 2)
+        self.assertIn(
+            "cancha",
+            invalid.errors
+        )
+
+        all_venues = DashboardFilterForm(
+            {},
+            user=self.user
+        )
+
+        self.assertEqual(
+            all_venues.fields["cancha"].queryset.count(),
+            1
+        )
 
     def test_default_and_future_dates_respect_bogota_timezone(self):
         # 1 de octubre UTC todavía es 30 de septiembre en Bogotá.
         with patch("django.utils.timezone.now", return_value=datetime(2026, 10, 1, 2, tzinfo=ZoneInfo("UTC"))):
-            historical = DashboardFilterForm({})
-            future = DashboardFilterForm({"tipo": "FUTURE"})
+            historical = DashboardFilterForm(
+                {},
+                user=self.user
+            )
+            future = DashboardFilterForm(
+                {
+                    "tipo": "FUTURE"
+                },
+                user=self.user
+            )
             self.assertTrue(historical.is_valid())
             self.assertTrue(future.is_valid())
             self.assertEqual(historical.cleaned_data["fecha_fin"], date(2026, 9, 30))
