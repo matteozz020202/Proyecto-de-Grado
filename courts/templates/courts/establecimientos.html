@@ -11,7 +11,7 @@
 </head><body class="catalog-body">
 <a class="skip-link" href="#catalogo">Ir al catálogo</a>
 <div class="catalog-shell">
-{% include 'users/partials/branded_navbar.html' %}
+{% include 'users/partials/branded_navbar.html' with hide_home=True %}
 <main id="catalogo" tabindex="-1">
 <header class="catalog-heading"><p class="eyebrow">ENCUENTRA TU PRÓXIMA CANCHA</p><h1>ESTABLECIMIENTOS<br>PARA TU <span>PRÓXIMO PARTIDO.</span></h1><p>Explora nuestros establecimientos, conoce sus canchas y reserva en pocos pasos.</p></header>
 {% if messages %}<div class="home-messages" role="status">{% for message in messages %}<p>{{ message }}</p>{% endfor %}</div>{% endif %}

@@ -54,3 +54,34 @@ h1 span { color: var(--brand-lime); }
     .auth-switch { margin-top: 16px; }
     .back-index { margin-top: 12px; }
 }
+
+/* Transición entre las vistas reales de acceso; no intercepta links ni formularios. */
+@view-transition { navigation: auto; }
+.auth-content { view-transition-name: auth-content; }
+::view-transition-old(root),
+::view-transition-new(root) { animation: none; }
+::view-transition-group(auth-content) {
+    animation-duration: 300ms;
+    animation-timing-function: ease-in-out;
+}
+::view-transition-old(auth-content) {
+    animation: auth-leave 300ms ease-in-out both;
+    mix-blend-mode: normal;
+}
+::view-transition-new(auth-content) {
+    animation: auth-enter 300ms ease-in-out both;
+    mix-blend-mode: normal;
+}
+@keyframes auth-leave {
+    to { opacity: 0; transform: translateY(-6px); }
+}
+@keyframes auth-enter {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+    @view-transition { navigation: none; }
+    ::view-transition-group(auth-content),
+    ::view-transition-old(auth-content),
+    ::view-transition-new(auth-content) { animation: none; }
+}

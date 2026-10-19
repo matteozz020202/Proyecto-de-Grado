@@ -4,7 +4,7 @@ from django.shortcuts import get_object_or_404, render
 from django.utils import timezone
 from django.db.models import Count, Min, Q
 
-from reservations.services import get_availability
+from reservations.services import calculate_reservation_values, get_availability
 
 from .models import Venue, Court
 
@@ -97,6 +97,11 @@ def disponibilidad_cancha(
             error = (
                 "La fecha seleccionada no es válida."
             )
+
+    if slots:
+        for slot in slots:
+            slot["values"] = calculate_reservation_values(court, selected_date, slot["start_time"], slot["end_time"])
+            slot["one_hour"] = slot["values"]["duration_hours"] == 1
 
     return render(
         request,

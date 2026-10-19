@@ -1,0 +1,60 @@
+.account-logout { padding: 10px 14px; border: 1px solid rgba(255,255,255,.4); border-radius: 10px; color: white; background: transparent; font-size: 13px; cursor: pointer; transition: border-color 250ms ease, background-color 250ms ease; }
+.account-logout:hover { border-color: var(--brand-lime); background: rgba(50,255,0,.06); }
+.account-messages { margin-bottom: 24px; }
+.account-message { display: flex; gap: 14px; align-items: center; padding: 18px 22px; border: 1px solid rgba(50,255,0,.4); border-radius: 14px; background: rgba(25,65,24,.5); font-size: 14px; line-height: 1.6; margin: 0 0 12px; }
+.account-message > span { color: var(--brand-lime); font-size: 22px; font-weight: 700; }
+.account-message--error { border-color: #ff918566; background: #53201b55; }
+.account-message--error > span { color: #ffb4ab; }
+.profile-layout { display: grid; grid-template-columns: minmax(0,.65fr) minmax(0,1.6fr); gap: 24px; max-width: 1100px; margin: 0 auto; }
+.profile-layout--single { display: block; max-width: 700px; }
+.profile-identity,.profile-form-panel { border: 1px solid var(--home-border); background: rgba(8,24,15,.92); border-radius: 22px; padding: 30px; min-width: 0; }
+.profile-identity { text-align: center; background: radial-gradient(ellipse at 50% 0,rgba(50,255,0,.07),transparent 65%),rgba(8,24,15,.92); }
+.profile-initials { display: grid; place-items: center; width: 96px; height: 96px; margin: 0 auto 22px; border-radius: 50%; border: 2px solid var(--brand-lime); background: rgba(50,255,0,.06); color: white; font-size: 31px; font-weight: 700; }
+.profile-identity h2 { font-size: 23px; margin: 0 0 10px; overflow-wrap: anywhere; }
+.profile-identity > p { font-size: 13px; color: var(--home-muted); line-height: 1.7; }
+.account-state { display: inline-block; padding: 8px 12px; margin: 10px 0 18px; border: 1px solid rgba(50,255,0,.4); color: var(--brand-lime); border-radius: 30px; font-size: 12px; }
+.profile-identity .identity-note { padding-top: 20px; border-top: 1px solid var(--home-border); margin: 10px 0 0; }
+.profile-form-panel h1,.reservations-heading h1 { font-size: 32px; letter-spacing: -.035em; margin: 0 0 10px; }
+.account-subtitle { color: var(--home-muted); font-size: 14px; line-height: 1.7; margin: 0 0 24px; }
+.profile-field { margin-bottom: 20px; }
+.profile-field label { display: block; font-size: 14px; margin-bottom: 9px; }
+.profile-field input { width: 100%; min-width: 0; font: inherit; font-size: 15px; border: 1px solid rgba(255,255,255,.25); border-radius: 10px; padding: 12px 14px; color: white; background: rgba(22,39,29,.7); min-height: 46px; transition: border-color 250ms ease, background-color 250ms ease; }
+.profile-field input:focus { border-color: var(--brand-lime); }
+.profile-field input[readonly] { color: var(--home-muted); background: rgba(40,53,43,.6); }
+.profile-field input[aria-invalid] { border-color: #ffb4ab; }
+.field-note { display: block; color: var(--home-muted); font-size: 12px; line-height: 1.6; margin-top: 8px; }
+.field-note ul { padding-left: 18px; }
+.profile-form .button { width: 100%; cursor: pointer; }
+.profile-errors { color: #ffb4ab; font-size: 13px; line-height: 1.6; }
+.profile-errors ul { margin: 8px 0; padding-left: 18px; }
+.password-link { display: flex; justify-content: center; gap: 12px; padding-top: 22px; margin-top: 24px; border-top: 1px solid var(--home-border); font-size: 14px; }
+.password-link:hover { color: var(--brand-lime); }
+.reservations-heading { margin-bottom: 30px; }
+.reservations-heading .button { font-size: 13px; min-height: 40px; padding: 10px 16px; }
+.personal-reservations { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 24px; max-width: 1200px; }
+.personal-reservation { min-width: 0; overflow: hidden; border: 1px solid rgba(50,255,0,.2); border-radius: 22px; background: rgba(6,23,15,.95); display: flex; flex-direction: column; transition: border-color 250ms ease; }
+.personal-reservation:hover { border-color: rgba(50,255,0,.5); }
+.reservation-media { position: relative; margin: 18px 18px 0; }
+.reservation-image,.reservation-media .court-placeholder { width: 100%; aspect-ratio: 2.4; height: auto; border-radius: 12px; object-fit: cover; margin: 0; }
+.reservation-media .court-placeholder svg { width: 60px; height: 42px; }
+.reservation-media .court-placeholder { font-size: 12px; gap: 8px; }
+.reservation-status { position: absolute; top: 12px; right: 12px; border: 1px solid rgba(255,255,255,.3); background: #26312b; color: white; padding: 6px 10px; border-radius: 20px; font-size: 11px; font-weight: 700; }
+.status-confirmed { color: #cbffbd; border-color: rgba(50,255,0,.5); background: #133e21; }
+.status-completed { color: #deeedb; background: #233c2c; }
+.status-cancelled { color: #ffd5d0; background: #4b2727; border-color: #ffb4ab66; }
+.status-expired { color: #d2d8ce; background: #303931; }
+.status-pending_payment { color: #ffe2a8; background: #44391d; }
+.personal-reservation-content { padding: 22px; flex: 1; display: flex; flex-direction: column; }
+.personal-reservation-content h2 { font-size: 25px; margin: 0 0 9px; letter-spacing: -.03em; overflow-wrap: anywhere; }
+.reservation-venue { font-size: 14px; color: var(--home-muted); margin: 0 0 20px; overflow-wrap: anywhere; }
+.reservation-facts { padding-top: 20px; border-top: 1px solid var(--home-border); margin: 0 0 22px; }
+.reservation-facts > div { display: flex; flex-wrap: wrap; gap: 7px; margin-bottom: 12px; font-size: 14px; line-height: 1.5; }
+.reservation-facts dt { font-weight: 600; }
+.reservation-facts dd { margin: 0; }
+.cancel-reservation { width: 100%; min-height: 46px; border: 1px solid #f16f64; color: #ff9389; background: transparent; padding: 12px; border-radius: 10px; cursor: pointer; font-size: 14px; transition: background-color 250ms ease; }
+.cancel-reservation:hover { background: rgba(255,100,90,.1); }
+.reservation-meta { font-size: 12px; color: var(--home-muted); margin: auto 0 0; padding-top: 22px; }
+.reservation-meta span { color: var(--brand-lime); }
+@media(max-width:800px) { .profile-layout { grid-template-columns: minmax(0,1fr); } .profile-identity { padding: 24px; } .profile-initials { width: 72px; height: 72px; font-size: 25px; margin-bottom: 15px; } }
+@media(max-width:600px) { .personal-reservations { grid-template-columns: minmax(0,1fr); } .profile-form-panel { padding: 24px 20px; } .personal-reservation-content { padding: 20px; } .reservation-media { margin: 14px 14px 0; } .reservation-image,.reservation-media .court-placeholder { aspect-ratio: 2; } .account-message { padding: 16px; } }
+@media(prefers-reduced-motion:reduce) { .account-logout,.profile-field input,.personal-reservation,.cancel-reservation { transition: none; } }

@@ -6,7 +6,7 @@ from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.utils import timezone
 
-from courts.models import CourtSchedule
+from courts.models import Court, CourtSchedule
 from reservations.models import Reservation, Payment
 
 
@@ -333,24 +333,21 @@ def create_pending_reservation(
     return reservation
 
 @transaction.atomic
-def create_admin_reservation(
+def create_confirmed_reservation(
     user,
     court,
     reservation_date,
     start_time,
     end_time,
+    *,
+    apply_deposit=False,
 ):
     """
-    Creates a reservation manually from the
-    administrative panel.
-
-    The existing reservation creation service is reused
-    so schedule and overlap validations remain centralized.
-
-    Administrative reservations are confirmed immediately
-    and do not use the 15-minute payment hold.
+    Confirma sin pagos, reutilizando las validaciones del servicio existente.
+    La transacción no expone el estado temporal fuera de este servicio.
     """
 
+    court = Court.objects.select_for_update().get(pk=court.pk)
     reservation = create_pending_reservation(
         user=user,
         court=court,
@@ -361,15 +358,26 @@ def create_admin_reservation(
 
     reservation.reservation_status = "CONFIRMED"
     reservation.hold_expires_at = None
+    if not apply_deposit:
+        reservation.deposit_required = 0
+        # Confirmar no significa cobrar: no se registra un pago ficticio.
+        reservation.remaining_amount = reservation.total_amount
 
     reservation.save(
         update_fields=[
             "reservation_status",
             "hold_expires_at",
+            "deposit_required",
+            "remaining_amount",
         ]
     )
 
     return reservation
+
+
+def create_admin_reservation(user, court, reservation_date, start_time, end_time):
+    """Conserva el contrato administrativo anterior y su cálculo de abono."""
+    return create_confirmed_reservation(user, court, reservation_date, start_time, end_time, apply_deposit=True)
 
 
 @transaction.atomic

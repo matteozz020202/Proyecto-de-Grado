@@ -1,225 +1,43 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-
-    <meta
-        name="viewport"
-        content="width=device-width, initial-scale=1.0"
-    >
-
-    <title>Disponibilidad - Cancha Lista</title>
-
-    <link
-        href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
-        rel="stylesheet"
-    >
-</head>
-
-<body class="bg-light">
-
-{% include 'users/partials/navbar.html' %}
-
-
-<main class="container py-5">
-
-    {% if messages %}
-
-        {% for message in messages %}
-
-            <div
-                class="alert
-                {% if message.tags == 'error' %}
-                    alert-danger
-                {% else %}
-                    alert-{{ message.tags }}
-                {% endif %}"
-            >
-                {{ message }}
-            </div>
-
-        {% endfor %}
-
-    {% endif %}
-
-
-    <div class="row g-4">
-
-        <!-- Información de la cancha -->
-        <div class="col-12 col-lg-4">
-
-            <div class="card shadow-sm border-0">
-
-                {% if cancha.image %}
-
-                    <img
-                        src="{{ cancha.image.url }}"
-                        class="card-img-top"
-                        alt="{{ cancha.court_name }}"
-                        style="height: 240px; object-fit: cover;"
-                    >
-
-                {% else %}
-
-                    <div
-                        class="bg-secondary-subtle d-flex align-items-center justify-content-center"
-                        style="height: 240px;"
-                    >
-                        <span class="text-muted">
-                            Sin imagen
-                        </span>
-                    </div>
-
-                {% endif %}
-
-                <div class="card-body">
-
-                    <h3 class="h4">
-                        {{ cancha.court_name }}
-                    </h3>
-
-                    <p class="text-muted">
-                        {{ cancha.venue.venue_name }}
-                    </p>
-
-                    <p>
-                        <strong>Precio por hora:</strong>
-                        ${{ cancha.price_per_hour|floatformat:0 }}
-                    </p>
-
-                    <p class="mb-0">
-                        <strong>Abono requerido:</strong>
-                        {{ cancha.venue.deposit_percentage }}%
-                    </p>
-
-                </div>
-
-            </div>
-
-        </div>
-
-
-        <!-- Disponibilidad -->
-        <div class="col-12 col-lg-8">
-
-            <div class="card shadow-sm border-0">
-
-                <div class="card-body p-4">
-
-                    <h1 class="h4 mb-4">
-                        Consultar disponibilidad
-                    </h1>
-
-
-                    <form
-                        method="GET"
-                        class="row g-3"
-                    >
-
-                        <div class="col-md-8">
-
-                            <label
-                                for="fecha"
-                                class="form-label"
-                            >
-                                Selecciona una fecha
-                            </label>
-
-                            <input
-                                type="date"
-                                id="fecha"
-                                name="fecha"
-                                class="form-control"
-                                min="{{ hoy|date:'Y-m-d' }}"
-                                value="{% if fecha_seleccionada %}{{ fecha_seleccionada|date:'Y-m-d' }}{% endif %}"
-                                required
-                            >
-
-                        </div>
-
-
-                        <div class="col-md-4 d-flex align-items-end">
-
-                            <button
-                                type="submit"
-                                class="btn btn-primary w-100"
-                            >
-                                Buscar disponibilidad
-                            </button>
-
-                        </div>
-
-                    </form>
-
-
-                    {% if error %}
-
-                        <div class="alert alert-danger mt-4">
-                            {{ error }}
-                        </div>
-
-                    {% endif %}
-
-
-                    {% if fecha_seleccionada and not error %}
-
-                        <hr class="my-4">
-
-                        <h5>
-                            Horarios disponibles
-                        </h5>
-
-                        <p class="text-muted">
-                            {{ fecha_seleccionada|date:"d/m/Y" }}
-                        </p>
-
-
-                        {% if slots %}
-
-                            <div class="row g-2 mt-2">
-
-                                {% for slot in slots %}
-
-                                    <div class="col-6 col-md-4">
-
-                                        <a
-                                            href="{% url 'reservations:resumen_reserva' cancha.court_id %}?fecha={{ fecha_seleccionada|date:'Y-m-d' }}&inicio={{ slot.start_time|time:'H:i' }}&fin={{ slot.end_time|time:'H:i' }}"
-                                            class="btn btn-outline-primary w-100"
-                                        >
-                                            {{ slot.start_time|time:"H:i" }}
-                                            -
-                                            {{ slot.end_time|time:"H:i" }}
-                                        </a>
-
-                                    </div>
-
-                                {% endfor %}
-
-                            </div>
-
-                        {% else %}
-
-                            <div class="alert alert-warning mt-3">
-                                No hay horarios disponibles para esta fecha.
-                            </div>
-
-                        {% endif %}
-
-                    {% endif %}
-
-                </div>
-
-            </div>
-
-        </div>
-
-    </div>
-
-</main>
-
-<script
-    src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js">
-</script>
-
-</body>
-</html>
+{% load static i18n %}
+<!DOCTYPE html><html lang="es"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ cancha.court_name }} · Disponibilidad · Cancha Lista</title>
+<link rel="icon" href="{% static 'users/images/logo-icon.png' %}">
+<link rel="stylesheet" href="{% static 'users/css/home.css' %}">
+<link rel="stylesheet" href="{% static 'courts/css/catalog.css' %}">
+<link rel="stylesheet" href="{% static 'courts/css/availability.css' %}">
+<script src="{% static 'users/js/home.js' %}" defer></script>
+<script src="{% static 'courts/js/availability.js' %}" defer></script>
+</head><body class="catalog-body">
+<a class="skip-link" href="#disponibilidad">Ir a disponibilidad</a>
+<div class="catalog-shell">
+{% include 'users/partials/branded_navbar.html' with availability_nav=True %}
+<main id="disponibilidad" tabindex="-1">
+<a class="availability-back" href="{% url 'courts:canchas_establecimiento' cancha.venue_id %}">← Volver a {{ cancha.venue.venue_name }}</a>
+{% if messages %}<div role="status">{% for message in messages %}<p>{{ message }}</p>{% endfor %}</div>{% endif %}
+<div class="availability-layout">
+<section class="court-overview" aria-labelledby="court-name">
+{% if cancha.image %}<img class="availability-image" src="{{ cancha.image.url }}" alt="{{ cancha.court_name }}" width="5280" height="5451" decoding="async">{% endif %}
+<div class="court-placeholder" {% if cancha.image %}hidden{% endif %}><svg viewBox="0 0 64 44" aria-hidden="true"><rect x="2" y="2" width="60" height="40" rx="3"/><path d="M32 2v40M2 14h10v16H2m60-16H52v16h10"/><circle cx="32" cy="22" r="8"/></svg><span>Imagen no disponible</span></div>
+<h1 id="court-name">{{ cancha.court_name }}</h1><a class="court-venue" href="{% url 'courts:canchas_establecimiento' cancha.venue_id %}">{{ cancha.venue.venue_name }}</a>
+<p class="court-location">{% if cancha.venue.address %}{{ cancha.venue.address }} · {% endif %}{{ cancha.venue.city }}</p>
+<div class="court-metrics"><div><strong>{% language 'es-co' %}${{ cancha.price_per_hour|floatformat:'0g' }}{% endlanguage %}</strong><span>Por hora · COP</span></div><div><strong>{% language 'es-co' %}{{ cancha.venue.deposit_percentage|floatformat:'-2' }}{% endlanguage %}%</strong><span>Abono requerido</span></div></div>
+{% if cancha.description %}<p class="court-description">{{ cancha.description|linebreaksbr }}</p>{% endif %}
+</section>
+<section class="availability-panel" aria-labelledby="availability-title">
+<h2 id="availability-title">Encuentra tu horario</h2><p class="availability-intro">Selecciona una fecha y elige la hora en la que quieres jugar.</p>
+<form method="get" class="availability-form"><div><label for="fecha">Selecciona una fecha</label><input type="date" id="fecha" name="fecha" min="{{ hoy|date:'Y-m-d' }}" value="{% if fecha_seleccionada %}{{ fecha_seleccionada|date:'Y-m-d' }}{% endif %}" required></div><button type="submit" class="button button-primary">Buscar disponibilidad</button></form>
+{% if error %}<p class="availability-error" role="alert">{{ error }}</p>{% endif %}
+{% if fecha_seleccionada and not error %}
+<section class="available-times" aria-labelledby="times-title"><h3 id="times-title">Horarios disponibles</h3><p class="selected-date">{% language 'es-co' %}{{ fecha_seleccionada|date:'l, j \d\e F \d\e Y'|capfirst }}{% endlanguage %}</p>
+{% if slots %}<p class="availability-note">Reserva con al menos una hora de anticipación. Solo se muestran horarios disponibles.</p>
+<div class="time-grid" aria-label="Selecciona un horario">
+{% for slot in slots %}<a class="time-slot" href="{% url 'reservations:resumen_reserva' cancha.pk %}?fecha={{ fecha_seleccionada|date:'Y-m-d' }}&amp;inicio={{ slot.start_time|time:'H:i' }}&amp;fin={{ slot.end_time|time:'H:i' }}" data-range="{{ slot.start_time|time:'H:i' }} – {{ slot.end_time|time:'H:i' }}" data-total="{% language 'es-co' %}${{ slot.values.total_amount|floatformat:'0g' }}{% endlanguage %}" data-deposit="{% language 'es-co' %}${{ slot.values.deposit_required|floatformat:'0g' }}{% endlanguage %}" aria-label="Seleccionar horario {{ slot.start_time|time:'H:i' }} a {{ slot.end_time|time:'H:i' }}">{{ slot.start_time|time:'H:i' }}{% if not slot.one_hour %} – {{ slot.end_time|time:'H:i' }}{% endif %}</a>{% endfor %}
+</div>
+<section class="booking-summary" hidden aria-labelledby="summary-title"><div class="booking-selection" aria-live="polite" aria-atomic="true"><h3 id="summary-title">Tu reserva</h3><p>{% language 'es-co' %}{{ fecha_seleccionada|date:'l, j \d\e F \d\e Y'|capfirst }}{% endlanguage %}</p><strong id="summary-range"></strong></div><div class="booking-values"><dl><div><dt>Valor por hora</dt><dd>{% language 'es-co' %}${{ cancha.price_per_hour|floatformat:'0g' }}{% endlanguage %}</dd></div><div><dt>Valor de la reserva</dt><dd id="summary-total"></dd></div><div><dt>Abono requerido ({% language 'es-co' %}{{ cancha.venue.deposit_percentage|floatformat:'-2' }}{% endlanguage %}%)</dt><dd id="summary-deposit"></dd></div></dl><a class="button button-primary" id="continue-booking">Continuar reserva <span aria-hidden="true">→</span></a></div></section>
+<noscript><p class="availability-note">Selecciona un horario para continuar directamente al resumen de reserva.</p></noscript>
+{% else %}<p class="availability-empty">No hay horarios disponibles para esta fecha. Prueba con otra fecha.</p>{% endif %}</section>
+{% else %}{% if not error %}<div class="availability-empty"><p>Tu próximo partido empieza con una fecha.</p><p>Consulta los horarios disponibles antes de continuar con tu reserva.</p></div>{% endif %}{% endif %}
+</section></div></main>
+<footer class="catalog-footer"><a href="{% url 'users:home' %}">Cancha Lista</a><p>Encuentra, reserva, juega.</p></footer>
+</div></body></html>
