@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
@@ -6,11 +6,13 @@ from django.core.exceptions import ValidationError
 from django.core.paginator import Paginator
 from django.conf import settings
 from django.http import JsonResponse
+from django.db.models import Q
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.template.loader import render_to_string
 from django.utils import timezone
-from django.views.decorators.http import require_POST
+from django.views.decorators.http import require_GET, require_POST
+from django.views.decorators.cache import never_cache
 from django.contrib.auth import get_user_model
 from pydantic import ValidationError as ContractValidationError
 
@@ -425,16 +427,28 @@ def cancelar_reserva_view(
 
 
 
+@never_cache
+@login_required(login_url="users:login")
+@admin_required
+@require_GET
+def admin_buscar_usuarios(request):
+    query = request.GET.get("q", "").strip()[:100]
+    if len(query) < 2:
+        return JsonResponse({"results": []})
+    users = get_user_model().objects.filter(is_active=True).filter(
+        Q(username__icontains=query) | Q(first_name__icontains=query)
+        | Q(last_name__icontains=query) | Q(email__icontains=query)
+    ).only("id", "username", "first_name", "last_name", "email").order_by("username", "pk")[:10]
+    return JsonResponse({"results": [
+        {"id": user.pk, "username": user.username, "name": user.get_full_name(), "email": user.email}
+        for user in users
+    ]})
+
+
 @admin_required
 def admin_crear_reserva(request):
 
     User = get_user_model()
-
-    users = (
-        User.objects
-        .filter(is_active=True)
-        .order_by("username")
-    )
 
     courts = (
         Court.objects
@@ -498,6 +512,9 @@ def admin_crear_reserva(request):
                 # Usuario
                 # -------------------------
 
+                if not (selected_user.isascii() and selected_user.isdecimal()
+                        and len(selected_user) <= 19 and int(selected_user) <= 9223372036854775807):
+                    raise User.DoesNotExist
                 user = User.objects.get(
                     pk=selected_user,
                     is_active=True,
@@ -605,11 +622,16 @@ def admin_crear_reserva(request):
                     "reservations:admin_dashboard"
                 )
 
+    selected_user_object = None
+    if (selected_user.isascii() and selected_user.isdecimal() and len(selected_user) <= 19
+            and int(selected_user) <= 9223372036854775807):
+        selected_user_object = User.objects.filter(pk=selected_user, is_active=True).first()
+
     return render(
         request,
         "reservations/admin_crear_reserva.html",
         {
-            "usuarios": users,
+            "usuario_objeto": selected_user_object,
             "canchas": courts,
 
             "usuario_seleccionado": selected_user,

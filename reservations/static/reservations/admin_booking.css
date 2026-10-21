@@ -1,0 +1,25 @@
+.manual-shell { max-width: 1300px; }
+.manual-notice { padding: 22px; margin-bottom: 24px; }
+.manual-layout { display: grid; grid-template-columns: minmax(0,1.7fr) minmax(0,.9fr); gap: 24px; align-items: start; }
+.manual-data { grid-column: 1; grid-row: 1; }
+.manual-preview { grid-column: 2; grid-row: 1 / span 2; }
+.manual-layout label { font-size: 14px; margin-bottom: 10px; }
+.manual-layout input,.manual-layout select { min-height: 46px; }
+.manual-actions { grid-column: 1; display: flex; gap: 14px; flex-wrap: wrap; padding-bottom: 20px; }
+.manual-actions .btn-primary { min-width: 210px; }
+.manual-preview-values { margin: 24px 0; }
+.manual-preview-values > div { border-bottom: 1px solid var(--bs-border-color); padding: 16px 0; }
+.manual-preview-values dt { font-size: 12px; color: #bbc8be; font-weight: 400; margin-bottom: 8px; }
+.manual-preview-values dd { margin: 0; font-size: 14px; line-height: 1.65; overflow-wrap: anywhere; }
+.expected-status { border: 1px solid var(--bs-border-color); border-radius: 12px; padding: 18px; }
+.expected-status strong { display: table; color: #c6ffb6; border: 1px solid rgba(50,255,0,.3); border-radius: 18px; background: rgba(50,255,0,.07); padding: 5px 12px; font-size: 12px; margin-top: 10px; }
+.user-search { position: relative; }
+.user-results { list-style: none; margin: 8px 0 0; padding: 6px; border: 1px solid rgba(50,255,0,.25); border-radius: 12px; background: #102319; max-height: 290px; overflow-y: auto; }
+.user-results [role=option] { padding: 12px; border-radius: 8px; color: #f0f6ec; cursor: pointer; font-size: 13px; line-height: 1.65; overflow-wrap: anywhere; }
+.user-results [role=option]:hover,.user-results [aria-selected=true] { background: rgba(50,255,0,.1); outline: 1px solid rgba(50,255,0,.35); }
+.user-results small { display: block; color: #bdcbbf; }
+.selected-user { border: 1px solid rgba(50,255,0,.3); background: rgba(50,255,0,.04); border-radius: 12px; padding: 18px; overflow-wrap: anywhere; }
+.selected-user strong,.selected-user span { display: block; line-height: 1.7; font-size: 13px; }
+.selected-user span { color: #bbc8be; }
+.selected-user button { background: transparent; border: 0; color: var(--brand-lime); margin-top: 10px; padding: 5px 0; font-size: 12px; cursor: pointer; }
+@media(max-width:767px) { .manual-layout { grid-template-columns: minmax(0,1fr); gap: 18px; } .manual-data,.manual-preview,.manual-actions { grid-column: 1; grid-row: auto; } .manual-preview { order: 2; } .manual-actions { order: 3; flex-direction: column; } .manual-actions .btn { width: 100%; } }
