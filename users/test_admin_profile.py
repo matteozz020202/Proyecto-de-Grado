@@ -16,12 +16,12 @@ class AdminProfileTests(TestCase):
         self.client.force_login(self.admin)
         response=self.client.get(reverse('users:profile'))
         self.assertContains(response,'>Dashboard</a>')
-        self.assertContains(response,reverse('reservations:admin_dashboard')+'#reservas-administrativas')
+        self.assertContains(response,reverse('reservations:admin_reservas'))
         self.assertContains(response,'href="/perfil/" aria-current="page"')
         self.assertNotContains(response,'Mis reservas')
         self.assertContains(response,'value="Administrador" readonly')
         self.assertContains(response,'>AD</span>')
-        self.assertContains(response,'La información de establecimientos asignados no está disponible')
+        self.assertContains(response,'Sin establecimientos asignados')
         self.assertNotContains(response,'Venue sin relación administrativa')
 
     def test_group_admin_uses_same_navigation_and_user_keeps_personal_navigation(self):
@@ -47,3 +47,12 @@ class AdminProfileTests(TestCase):
         self.assertEqual(response.status_code,200)
         self.assertContains(response,'href="/perfil/" aria-current="page"')
         self.assertNotContains(response,'Mis reservas')
+
+    def test_profile_shows_only_assigned_venues(self):
+        Venue.objects.create(venue_name='Propio',manager=self.admin)
+        Venue.objects.create(venue_name='De otro administrador',manager=self.normal)
+        self.client.force_login(self.admin)
+        response=self.client.get(reverse('users:profile'))
+        self.assertContains(response,'Propio')
+        self.assertNotContains(response,'De otro administrador')
+        self.assertNotContains(response,'Venue sin relación administrativa')

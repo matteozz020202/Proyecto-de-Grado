@@ -61,3 +61,7 @@
 .admin-venue-context { border-top: 1px solid var(--home-border); padding-top: 22px; margin-top: 10px; text-align: left; }
 .admin-venue-context h3 { font-size: 14px; line-height: 1.6; margin: 0 0 12px; }
 .admin-venue-context p { color: var(--home-muted); font-size: 12px; line-height: 1.7; margin-bottom: 20px; }
+
+.managed-venues { list-style: none; padding: 0; font-size: 13px; line-height: 1.7; }
+.managed-venues li { margin-bottom: 10px; padding: 10px; border: 1px solid var(--home-border); border-radius: 10px; overflow-wrap: anywhere; }
+.managed-venues a:hover { color: var(--brand-lime); }

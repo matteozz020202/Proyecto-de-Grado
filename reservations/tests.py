@@ -504,7 +504,11 @@ class AdminDashboardTests(TestCase):
         self.addCleanup(clock.stop)
         self.user = User.objects.create_user(username="cliente")
         self.admin = User.objects.create_user(username="admin", is_staff=True)
-        self.venue = Venue.objects.create(venue_name="Test", address="Calle 1")
+        self.venue = Venue.objects.create(
+            venue_name="Test",
+            address="Calle 1",
+            manager=self.admin
+        )
         self.court = Court.objects.create(
             venue=self.venue, court_name="Cancha", price_per_hour=120000
         )
@@ -534,28 +538,13 @@ class AdminDashboardTests(TestCase):
         self.user.save()
         self.assertEqual(self.client.get(self.url).status_code, 200)
 
-    def test_main_table_contains_reservations_in_selected_period(self):
-        at_10 = self.reservation(hour=10)
-        at_11 = self.reservation(hour=11)
-        at_now = self.reservation(hour=12)
-        future = self.reservation(hour=13)
-        tomorrow = self.reservation(hour=8, days=1)
-        cancelled = self.reservation(hour=14, status="CANCELLED")
-        completed = self.reservation(hour=15, status="COMPLETED")
+    def test_dashboard_no_longer_contains_reservation_table(self):
+        self.reservation(hour=10)
+        response=self.client.get(self.url,{"tipo":"FUTURE","fecha_inicio":self.now.date().isoformat(),"fecha_fin":(self.now.date()+timedelta(days=1)).isoformat()})
+        self.assertEqual(response.status_code,200)
+        self.assertNotContains(response,'id="reservas-administrativas"')
 
-        response = self.client.get(self.url, {
-            "tipo": "FUTURE",
-            "fecha_inicio": self.now.date().isoformat(),
-            "fecha_fin": (self.now.date() + timedelta(days=1)).isoformat(),
-        })
-
-        self.assertEqual(
-            list(response.context["pagina_reservas"]),
-            [tomorrow, completed, cancelled, future, at_now, at_11, at_10]
-        )
-        self.assertEqual(response.context["reservas_hoy"], 5)
-
-    def test_source_filter_applies_to_counts_table_and_payments(self):
+    def test_source_filter_applies_to_counts_and_payments(self):
         system = self.reservation()
         synthetic = self.reservation(hour=14, source="SYNTHETIC")
         for reservation, amount, status, ref in [
@@ -565,22 +554,13 @@ class AdminDashboardTests(TestCase):
         ]:
             Payment.objects.create(reservation=reservation, amount=amount,
                                    payment_status=status, transaction_reference=ref)
-        for source, count, income, expected in [
-            (None, 1, 36000, [system]),
-            ("SYNTHETIC", 1, 72000, [synthetic]),
-            ("ALL", 2, 108000, [synthetic, system]),
-            ("invalid", 1, 36000, [system]),
-        ]:
+        for source,count,income in [(None,1,36000),("SYNTHETIC",1,72000),("ALL",2,108000),("invalid",1,36000)]:
             with self.subTest(source=source):
                 response = self.client.get(self.url, {} if source is None else {"origen": source})
                 self.assertEqual(response.context["confirmadas"], count)
                 self.assertEqual(response.context["reservas_hoy"], count)
                 self.assertEqual(response.context["ingresos_aprobados"], Decimal(income))
                 self.assertEqual(response.context["pagos_aprobados"], count)
-                self.assertEqual(
-                    list(response.context["pagina_reservas"]),
-                    expected
-                )
 
     def test_expired_holds_are_not_counted_as_pending(self):
         expired = self.reservation(status="PENDING_PAYMENT",
@@ -601,20 +581,143 @@ class AdminDashboardTests(TestCase):
         home = self.client.get(reverse("users:home"))
         self.assertContains(home, self.url)
 
-    def test_main_table_is_not_limited_to_eight_reservations(self):
-        reservations = [
-            self.reservation(hour=hour)
-            for hour in range(13, 23)
-        ]
+    def test_reservations_page_is_not_limited_to_eight(self):
+        reservations=[self.reservation(hour=hour) for hour in range(13,23)]
+        response=self.client.get(reverse("reservations:admin_reservas"))
+        page=response.context["pagina_reservas"]
+        self.assertEqual(response.status_code,200)
+        self.assertEqual(page.paginator.count,10)
+        self.assertEqual(list(page),list(reversed(reservations)))
 
-        response = self.client.get(self.url)
+class AdminManualReservationTests(TestCase):
+    def setUp(self):
+        self.admin=User.objects.create_user(username="admin_manual",password="Test12345!",is_staff=True)
+        self.client_user=User.objects.create_user(username="cliente_manual",password="Test12345!")
+        self.venue=Venue.objects.create(venue_name="Complejo Manual",address="Calle 1",manager=self.admin,deposit_percentage=Decimal("30.00"),is_active=True)
+        self.court=Court.objects.create(venue=self.venue,court_name="Cancha Manual",price_per_hour=Decimal("120000.00"),is_active=True)
+        self.date=timezone.localdate()+timedelta(days=7)
+        CourtSchedule.objects.create(court=self.court,day_of_week=self.date.isoweekday(),start_time=time(8),end_time=time(22),slot_duration_minutes=60,is_active=True)
+        self.url=reverse("reservations:admin_crear_reserva")
+        self.client.force_login(self.admin)
 
-        self.assertEqual(response.context["reservas_hoy"], 10)
-        self.assertEqual(
-            response.context["pagina_reservas"].paginator.count,
-            10
-        )
-        self.assertEqual(
-            list(response.context["pagina_reservas"]),
-            list(reversed(reservations))
-        )
+    def data(self,**kwargs):
+        data={"tipo_cliente":"REGISTERED","usuario":str(self.client_user.pk),"cancha":str(self.court.pk),"fecha":self.date.isoformat(),"hora_inicio":"10:00","hora_fin":"11:00"}
+        data.update(kwargs)
+        return data
+
+    def test_registered_client_creates_confirmed_reservation_without_fake_payment(self):
+        response=self.client.post(self.url,self.data())
+        reservation=Reservation.objects.get()
+        self.assertRedirects(response,reverse("reservations:admin_reservas"))
+        self.assertEqual(reservation.user,self.client_user)
+        self.assertEqual(reservation.reservation_status,"CONFIRMED")
+        self.assertIsNone(reservation.hold_expires_at)
+        self.assertEqual(reservation.payments.count(),0)
+
+    def test_guest_client_creates_confirmed_reservation(self):
+        response=self.client.post(self.url,self.data(tipo_cliente="GUEST",usuario="",guest_name="Juan Pérez",guest_phone="3001234567"))
+        reservation=Reservation.objects.get()
+        self.assertRedirects(response,reverse("reservations:admin_reservas"))
+        self.assertIsNone(reservation.user)
+        self.assertEqual(reservation.guest_name,"Juan Pérez")
+        self.assertEqual(reservation.guest_phone,"3001234567")
+        self.assertEqual(reservation.reservation_status,"CONFIRMED")
+        self.assertEqual(reservation.payments.count(),0)
+
+    def test_overlapping_manual_reservation_is_rejected(self):
+        self.client.post(self.url,self.data())
+        response=self.client.post(self.url,self.data(usuario=str(self.client_user.pk)))
+        self.assertEqual(response.status_code,200)
+        self.assertEqual(Reservation.objects.count(),1)
+
+    def test_admin_cannot_create_reservation_on_foreign_court(self):
+        other=User.objects.create_user(username="other_admin",is_staff=True)
+        venue=Venue.objects.create(venue_name="Complejo Ajeno",address="Calle 2",manager=other,deposit_percentage=Decimal("30.00"),is_active=True)
+        court=Court.objects.create(venue=venue,court_name="Cancha Ajena",price_per_hour=Decimal("100000.00"),is_active=True)
+        CourtSchedule.objects.create(court=court,day_of_week=self.date.isoweekday(),start_time=time(8),end_time=time(22),slot_duration_minutes=60,is_active=True)
+        response=self.client.post(self.url,self.data(cancha=str(court.pk)))
+        self.assertEqual(response.status_code,200)
+        self.assertFalse(Reservation.objects.filter(court=court).exists())
+
+class AdminCompleteReservationTests(TestCase):
+    def setUp(self):
+        self.admin=User.objects.create_user(username="admin_complete",is_staff=True)
+        self.user=User.objects.create_user(username="cliente_complete")
+        self.venue=Venue.objects.create(venue_name="Complejo Complete",address="Calle 1",manager=self.admin)
+        self.court=Court.objects.create(venue=self.venue,court_name="Cancha Complete",price_per_hour=Decimal("120000.00"))
+        self.client.force_login(self.admin)
+
+    def reservation(self,status="CONFIRMED",court=None):
+        return Reservation.objects.create(user=self.user,court=court or self.court,reservation_date=timezone.localdate()+timedelta(days=1),start_time=time(10),end_time=time(11),total_amount=120000,deposit_required=36000,remaining_amount=84000,reservation_status=status)
+
+    def test_confirmed_reservation_can_be_completed(self):
+        reservation=self.reservation()
+        response=self.client.post(reverse("reservations:admin_detalle_reserva",args=[reservation.pk]),{"action":"complete"})
+        reservation.refresh_from_db()
+        self.assertRedirects(response,reverse("reservations:admin_detalle_reserva",args=[reservation.pk]))
+        self.assertEqual(reservation.reservation_status,"COMPLETED")
+
+    def test_non_confirmed_reservation_cannot_be_completed(self):
+        reservation=self.reservation("CANCELLED")
+        self.client.post(reverse("reservations:admin_detalle_reserva",args=[reservation.pk]),{"action":"complete"})
+        reservation.refresh_from_db()
+        self.assertEqual(reservation.reservation_status,"CANCELLED")
+
+    def test_admin_cannot_complete_foreign_reservation(self):
+        other=User.objects.create_user(username="other_complete",is_staff=True)
+        venue=Venue.objects.create(venue_name="Complejo Ajeno",address="Calle 2",manager=other)
+        court=Court.objects.create(venue=venue,court_name="Cancha Ajena",price_per_hour=Decimal("100000.00"))
+        reservation=self.reservation(court=court)
+        response=self.client.post(reverse("reservations:admin_detalle_reserva",args=[reservation.pk]),{"action":"complete"})
+        reservation.refresh_from_db()
+        self.assertEqual(response.status_code,404)
+        self.assertEqual(reservation.reservation_status,"CONFIRMED")
+
+class AdminCancelReservationTests(TestCase):
+    def setUp(self):
+        self.admin=User.objects.create_user(username="admin_cancel",is_staff=True)
+        self.user=User.objects.create_user(username="cliente_cancel")
+        self.venue=Venue.objects.create(venue_name="Complejo Cancel",address="Calle 1",manager=self.admin)
+        self.court=Court.objects.create(venue=self.venue,court_name="Cancha Cancel",price_per_hour=Decimal("120000.00"))
+        self.client.force_login(self.admin)
+
+    def reservation(self,status="CONFIRMED",court=None):
+        return Reservation.objects.create(user=self.user,court=court or self.court,reservation_date=timezone.localdate()+timedelta(days=1),start_time=time(10),end_time=time(11),total_amount=120000,deposit_required=36000,remaining_amount=84000,reservation_status=status,hold_expires_at=timezone.now()+timedelta(minutes=15))
+
+    def test_confirmed_reservation_can_be_cancelled(self):
+        reservation=self.reservation()
+        response=self.client.post(reverse("reservations:admin_detalle_reserva",args=[reservation.pk]),{"action":"cancel"})
+        reservation.refresh_from_db()
+        self.assertRedirects(response,reverse("reservations:admin_detalle_reserva",args=[reservation.pk]))
+        self.assertEqual(reservation.reservation_status,"CANCELLED")
+        self.assertIsNotNone(reservation.cancelled_at)
+        self.assertIsNone(reservation.hold_expires_at)
+
+    def test_non_confirmed_reservation_cannot_be_cancelled(self):
+        reservation=self.reservation("COMPLETED")
+        self.client.post(reverse("reservations:admin_detalle_reserva",args=[reservation.pk]),{"action":"cancel"})
+        reservation.refresh_from_db()
+        self.assertEqual(reservation.reservation_status,"COMPLETED")
+
+    def test_admin_cannot_cancel_foreign_reservation(self):
+        other=User.objects.create_user(username="other_cancel",is_staff=True)
+        venue=Venue.objects.create(venue_name="Complejo Ajeno Cancel",address="Calle 2",manager=other)
+        court=Court.objects.create(venue=venue,court_name="Cancha Ajena",price_per_hour=Decimal("100000.00"))
+        reservation=self.reservation(court=court)
+        response=self.client.post(reverse("reservations:admin_detalle_reserva",args=[reservation.pk]),{"action":"cancel"})
+        reservation.refresh_from_db()
+        self.assertEqual(response.status_code,404)
+        self.assertEqual(reservation.reservation_status,"CONFIRMED")
+
+    def test_confirmed_detail_shows_safe_action_buttons(self):
+        reservation=self.reservation()
+        response=self.client.get(reverse("reservations:admin_detalle_reserva",args=[reservation.pk]))
+        self.assertContains(response,"Marcar como completada")
+        self.assertContains(response,"Cancelar reserva")
+        self.assertContains(response,"return confirm(")
+
+    def test_non_confirmed_detail_hides_action_buttons(self):
+        reservation=self.reservation("COMPLETED")
+        response=self.client.get(reverse("reservations:admin_detalle_reserva",args=[reservation.pk]))
+        self.assertNotContains(response,"Marcar como completada")
+        self.assertNotContains(response,"Cancelar reserva")

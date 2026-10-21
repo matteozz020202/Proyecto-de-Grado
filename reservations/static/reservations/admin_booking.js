@@ -7,13 +7,16 @@
     const results = document.getElementById('user-results');
     const status = document.getElementById('user-search-status');
     const selected = document.getElementById('selected-user');
+    const clientType = document.getElementById('tipo_cliente');
+    const guestName = document.getElementById('guest_name');
+    const guestPhone = document.getElementById('guest_phone');
     const court = document.getElementById('cancha');
     const date = document.getElementById('fecha');
     const start = document.getElementById('hora_inicio');
     const end = document.getElementById('hora_fin');
     let timer, controller, sequence = 0, active = -1, matches = [];
     function preview() {
-        document.getElementById('preview-user').textContent = userId.value ? document.getElementById('selected-user-username').textContent : '—';
+        document.getElementById('preview-user').textContent = clientType.value === 'GUEST' ? (guestName.value.trim() || '—') : (userId.value ? document.getElementById('selected-user-username').textContent : '—');
         document.getElementById('preview-court').textContent = court.value ? court.selectedOptions[0].textContent.trim() : '—';
         document.getElementById('preview-date').textContent = date.value ? date.value.split('-').reverse().join('/') : '—';
         document.getElementById('preview-time').textContent = start.value && end.value ? `${start.value} – ${end.value}` : '—';
@@ -114,13 +117,29 @@
     });
     document.addEventListener('click', event => { if (!search.contains(event.target)) { cancelSearch(); close(); } });
     form.addEventListener('submit', event => {
-        if (!userId.value) {
+        if (clientType.value !== 'GUEST' && !userId.value) {
             event.preventDefault();
             input.setCustomValidity('Selecciona un usuario de los resultados.');
             input.reportValidity();
             input.focus();
         }
     });
+    function clientMode() {
+        const guest = clientType.value === 'GUEST';
+        cancelSearch();
+        close();
+        search.hidden = guest;
+        input.disabled = guest;
+        input.setCustomValidity('');
+        document.getElementById('guest-fields').hidden = !guest;
+        guestName.required = guest;
+        guestName.disabled = !guest;
+        guestPhone.disabled = !guest;
+        preview();
+    }
+    clientType.addEventListener('change', clientMode);
+    guestName.addEventListener('input', preview);
+    clientMode();
     [court, date, start, end].forEach(field => field.addEventListener('input', preview));
     preview();
 })();

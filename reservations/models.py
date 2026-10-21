@@ -1,5 +1,5 @@
+from django.conf import settings
 from django.db import models
-from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
 
 from courts.models import Court
@@ -35,10 +35,22 @@ class Reservation(models.Model):
 
     # 3. user_id
     user = models.ForeignKey(
-        User,
+        settings.AUTH_USER_MODEL,
         on_delete=models.PROTECT,
         related_name="reservations",
-        db_column="user_id"
+        db_column="user_id",
+        null=True,
+        blank=True,
+    )
+
+    guest_name = models.CharField(
+        max_length=120,
+        blank=True,
+    )
+
+    guest_phone = models.CharField(
+        max_length=30,
+        blank=True,
     )
 
     # 4. reservation_date
@@ -111,6 +123,22 @@ class Reservation(models.Model):
         ]
 
     def clean(self):
+
+        self.guest_name = (self.guest_name or "").strip()
+        self.guest_phone = (self.guest_phone or "").strip()
+
+        if not self.user_id and not self.guest_name:
+            raise ValidationError(
+                "La reserva debe tener un usuario registrado "
+                "o el nombre de un cliente sin cuenta."
+            )
+
+        if self.user_id and self.guest_name:
+            raise ValidationError(
+                "La reserva no puede tener al mismo tiempo "
+                "un usuario registrado y un cliente sin cuenta."
+            )
+
         # La hora inicial debe ser menor que la final.
         if self.start_time and self.end_time:
             if self.start_time >= self.end_time:
@@ -167,8 +195,14 @@ class Reservation(models.Model):
         )
 
     def __str__(self):
+        client_name = (
+            self.user.username
+            if self.user_id
+            else self.guest_name
+        )
+
         return (
-            f"{self.user.username} - "
+            f"{client_name} - "
             f"{self.court.court_name} - "
             f"{self.reservation_date} "
             f"{self.start_time}"

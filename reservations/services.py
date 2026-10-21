@@ -235,7 +235,9 @@ def create_pending_reservation(
     court,
     reservation_date,
     start_time,
-    end_time
+    end_time,
+    guest_name="",
+    guest_phone="",
 ):
     """
     Creates a temporary reservation in
@@ -310,6 +312,8 @@ def create_pending_reservation(
     reservation = Reservation(
         court=court,
         user=user,
+        guest_name=guest_name,
+        guest_phone=guest_phone,
         reservation_date=reservation_date,
         start_time=start_time,
         end_time=end_time,
@@ -333,51 +337,44 @@ def create_pending_reservation(
     return reservation
 
 @transaction.atomic
-def create_confirmed_reservation(
-    user,
-    court,
-    reservation_date,
-    start_time,
-    end_time,
-    *,
-    apply_deposit=False,
-):
-    """
-    Confirma sin pagos, reutilizando las validaciones del servicio existente.
-    La transacción no expone el estado temporal fuera de este servicio.
-    """
+def create_confirmed_reservation(user,court,reservation_date,start_time,end_time,guest_name="",guest_phone="",*,apply_deposit=False):
+    guest_name=(guest_name or "").strip()
+    guest_phone=(guest_phone or "").strip()
 
-    court = Court.objects.select_for_update().get(pk=court.pk)
-    reservation = create_pending_reservation(
-        user=user,
-        court=court,
-        reservation_date=reservation_date,
-        start_time=start_time,
-        end_time=end_time,
+    if user is None and not guest_name:
+        raise ValidationError("Debes seleccionar un usuario registrado o indicar el nombre del cliente sin cuenta.")
+
+    if user is not None:
+        guest_name=""
+        guest_phone=""
+
+    court=Court.objects.select_for_update().get(pk=court.pk)
+    reservation=create_pending_reservation(
+        user=user,court=court,reservation_date=reservation_date,
+        start_time=start_time,end_time=end_time,
+        guest_name=guest_name,guest_phone=guest_phone
     )
 
-    reservation.reservation_status = "CONFIRMED"
-    reservation.hold_expires_at = None
+    reservation.reservation_status="CONFIRMED"
+    reservation.hold_expires_at=None
+
     if not apply_deposit:
-        reservation.deposit_required = 0
-        # Confirmar no significa cobrar: no se registra un pago ficticio.
-        reservation.remaining_amount = reservation.total_amount
+        reservation.deposit_required=0
+        reservation.remaining_amount=reservation.total_amount
 
-    reservation.save(
-        update_fields=[
-            "reservation_status",
-            "hold_expires_at",
-            "deposit_required",
-            "remaining_amount",
-        ]
-    )
-
+    reservation.save(update_fields=[
+        "reservation_status","hold_expires_at",
+        "deposit_required","remaining_amount"
+    ])
     return reservation
 
 
-def create_admin_reservation(user, court, reservation_date, start_time, end_time):
-    """Conserva el contrato administrativo anterior y su cálculo de abono."""
-    return create_confirmed_reservation(user, court, reservation_date, start_time, end_time, apply_deposit=True)
+def create_admin_reservation(user,court,reservation_date,start_time,end_time,guest_name="",guest_phone=""):
+    return create_confirmed_reservation(
+        user,court,reservation_date,start_time,end_time,
+        guest_name=guest_name,guest_phone=guest_phone,
+        apply_deposit=True
+    )
 
 
 @transaction.atomic
@@ -530,4 +527,13 @@ def cancel_reservation(
         ]
     )
 
+    return reservation
+
+@transaction.atomic
+def complete_reservation(reservation):
+    reservation=Reservation.objects.select_for_update().get(pk=reservation.pk)
+    if reservation.reservation_status!="CONFIRMED":
+        raise ValidationError("Solo las reservas confirmadas pueden marcarse como completadas.")
+    reservation.reservation_status="COMPLETED"
+    reservation.save(update_fields=["reservation_status"])
     return reservation

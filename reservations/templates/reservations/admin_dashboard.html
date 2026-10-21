@@ -340,7 +340,7 @@
         </table></div>
     </div></section>
 
-    <details id="reservas-administrativas" class="admin-operation" {% if request.GET.page %}open{% endif %}><summary>Reservas del período <span>Consulta operativa · {{ pagina_reservas.paginator.count }} reservas</span></summary><p class="text-muted small">El listado operativo se conserva aquí por compatibilidad. Los filtros y la paginación mantienen el contexto del dashboard.</p>{% include 'reservations/dashboard_reservations.html' with title='Reservas del período' reservas=pagina_reservas %}</details>
+    <section class="card card-body mb-4"><h3 class="h5">Gestión de reservas</h3><p class="text-muted small">Consulta y gestiona las reservas en el apartado operativo.</p><a class="btn btn-outline-secondary align-self-start" href="{% url 'reservations:admin_reservas' %}">Ir a Reservas</a></section>
 
     <details class="card card-body mb-4">
         <summary>Detalle económico y operativo del contexto</summary>

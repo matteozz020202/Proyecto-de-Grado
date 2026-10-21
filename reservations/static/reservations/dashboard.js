@@ -2,12 +2,6 @@
     const payload = document.getElementById('dashboard-chart-data');
     if (!payload) return;
     const data = JSON.parse(payload.textContent);
-    const operations = document.getElementById('reservas-administrativas');
-    const revealOperations = () => {
-        if (operations && window.location.hash === '#reservas-administrativas') operations.open = true;
-    };
-    window.addEventListener('hashchange', revealOperations);
-    revealOperations();
     const number = new Intl.NumberFormat('es-CO', {maximumFractionDigits: 2});
     const missingLibrary = typeof Chart === 'undefined';
     const lime = getComputedStyle(document.documentElement).getPropertyValue('--brand-lime').trim() || '#32FF00';

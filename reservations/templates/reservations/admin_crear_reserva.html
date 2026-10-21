@@ -12,7 +12,9 @@
 <div class="alert alert-info manual-notice"><strong>La reserva será creada directamente como Confirmada.</strong><p class="mb-0 mt-2">El sistema validará que la cancha esté disponible y que el horario no se cruce con otra reserva.</p></div>
 <form method="post" id="manual-booking-form" class="manual-layout">{% csrf_token %}
 <section class="card manual-data" aria-labelledby="data-title"><div class="card-body"><h2 id="data-title" class="h5">Datos de la reserva</h2><p class="text-muted small mb-4">Completa la información para crear la reserva.</p>
-<div class="mb-4 user-search" data-search-url="{% url 'reservations:admin_buscar_usuarios' %}">
+<div class="mb-4"><label for="tipo_cliente" class="form-label">Tipo de cliente</label><select id="tipo_cliente" name="tipo_cliente" class="form-select"><option value="REGISTERED" {% if tipo_cliente != 'GUEST' %}selected{% endif %}>Usuario registrado</option><option value="GUEST" {% if tipo_cliente == 'GUEST' %}selected{% endif %}>Cliente sin cuenta</option></select></div>
+<div id="guest-fields" {% if tipo_cliente != 'GUEST' %}hidden{% endif %}><div class="mb-4"><label for="guest_name" class="form-label">Nombre del cliente</label><input id="guest_name" name="guest_name" class="form-control" maxlength="120" value="{{ guest_name }}" {% if tipo_cliente == 'GUEST' %}required{% endif %}></div><div class="mb-4"><label for="guest_phone" class="form-label">Teléfono del cliente (opcional)</label><input id="guest_phone" name="guest_phone" type="tel" class="form-control" maxlength="30" value="{{ guest_phone }}"></div></div>
+<div id="registered-fields" {% if tipo_cliente == 'GUEST' %}hidden{% endif %} class="mb-4 user-search" data-search-url="{% url 'reservations:admin_buscar_usuarios' %}">
 <label for="user-query" class="form-label">Usuario</label>
 <input id="user-query" class="form-control" type="search" placeholder="Buscar por nombre, usuario o correo" role="combobox" aria-autocomplete="list" aria-controls="user-results" aria-expanded="false" aria-describedby="user-search-status" autocomplete="off" {% if usuario_objeto %}value="{{ usuario_objeto.username }}"{% endif %}>
 <input type="hidden" name="usuario" id="usuario" value="{% if usuario_objeto %}{{ usuario_objeto.pk }}{% endif %}">
@@ -27,5 +29,5 @@
 <p class="small text-muted">El horario debe encontrarse dentro del horario operativo configurado para la cancha.</p>
 </div></section>
 <aside class="card manual-preview" aria-labelledby="preview-title"><div class="card-body"><h2 id="preview-title" class="h5">Resumen de la reserva</h2><p class="text-muted small">Vista previa de la información.</p><dl class="manual-preview-values"><div><dt>Usuario</dt><dd id="preview-user">—</dd></div><div><dt>Cancha</dt><dd id="preview-court">—</dd></div><div><dt>Fecha</dt><dd id="preview-date">—</dd></div><div><dt>Horario</dt><dd id="preview-time">—</dd></div></dl><div class="expected-status"><span class="small text-muted">Estado esperado</span><strong>Confirmada</strong></div></div></aside>
-<div class="manual-actions"><button type="submit" class="btn btn-primary">Crear reserva</button><a class="btn btn-outline-secondary" href="{% url 'reservations:admin_dashboard' %}">Cancelar</a></div>
+<div class="manual-actions"><button type="submit" class="btn btn-primary">Crear reserva</button><a class="btn btn-outline-secondary" href="{% url 'reservations:admin_reservas' %}">Cancelar</a></div>
 </form></main></body></html>

@@ -90,7 +90,10 @@ def profile_view(request):
         form.save()
         messages.success(request, "Perfil actualizado.")
         return redirect("users:profile")
-    return render(request, "users/account_form.html", {"form": form, "title": "Mi perfil", "profile": True})
+    context = {"form": form, "title": "Mi perfil", "profile": True}
+    if is_admin(request.user):
+        context["managed_venues"] = request.user.managed_venues.order_by("venue_name", "venue_id")
+    return render(request, "users/account_form.html", context)
 
 
 @never_cache

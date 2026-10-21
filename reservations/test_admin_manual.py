@@ -17,7 +17,7 @@ class AdminManualTests(TestCase):
         self.client.force_login(self.admin)
         self.search=reverse('reservations:admin_buscar_usuarios')
         self.url=reverse('reservations:admin_crear_reserva')
-        venue=Venue.objects.create(venue_name='Arena')
+        venue=Venue.objects.create(venue_name='Arena',manager=self.admin)
         self.court=Court.objects.create(venue=venue,court_name='Cancha',price_per_hour=130000)
         self.day=timezone.localdate()+timedelta(days=7)
         CourtSchedule.objects.create(court=self.court,day_of_week=self.day.isoweekday(),start_time=time(8),end_time=time(22))
@@ -46,7 +46,7 @@ class AdminManualTests(TestCase):
 
     def test_creation_uses_selected_user_and_remains_confirmed(self):
         response=self.client.post(self.url,self.data)
-        self.assertRedirects(response,reverse('reservations:admin_dashboard'))
+        self.assertRedirects(response,reverse('reservations:admin_reservas'))
         reservation=Reservation.objects.get()
         self.assertEqual(reservation.user,self.user)
         self.assertEqual(reservation.reservation_status,'CONFIRMED')
@@ -66,4 +66,21 @@ class AdminManualTests(TestCase):
             self.assertEqual(response.status_code,200)
             self.assertEqual(response.context['usuario_objeto'],self.user)
             self.assertContains(response,'lui2016')
+        self.assertFalse(Reservation.objects.exists())
+
+    def test_guest_creation_keeps_guest_fields_without_registered_user(self):
+        response=self.client.post(self.url,{**self.data,'tipo_cliente':'GUEST','usuario':'','guest_name':'Cliente visitante','guest_phone':'3001234567'})
+        self.assertRedirects(response,reverse('reservations:admin_reservas'))
+        reservation=Reservation.objects.get()
+        self.assertIsNone(reservation.user)
+        self.assertEqual(reservation.guest_name,'Cliente visitante')
+        self.assertEqual(reservation.guest_phone,'3001234567')
+        self.assertEqual(reservation.reservation_status,'CONFIRMED')
+
+    def test_court_of_another_manager_is_not_selectable_or_bookable(self):
+        venue=Venue.objects.create(venue_name='Ajeno',manager=self.user)
+        court=Court.objects.create(venue=venue,court_name='Cancha ajena',price_per_hour=100)
+        self.assertNotContains(self.client.get(self.url),'Cancha ajena')
+        response=self.client.post(self.url,{**self.data,'cancha':str(court.pk)})
+        self.assertEqual(response.status_code,200)
         self.assertFalse(Reservation.objects.exists())
