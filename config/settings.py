@@ -73,6 +73,7 @@ INSTALLED_APPS = [
     'users.apps.UsersConfig',
     'courts.apps.CourtsConfig',
     'reservations.apps.ReservationsConfig',
+    'chatbot.apps.ChatbotConfig',
 ]
 
 MIDDLEWARE = [

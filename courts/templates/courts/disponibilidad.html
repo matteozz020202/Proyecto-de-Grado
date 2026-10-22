@@ -40,4 +40,5 @@
 {% else %}{% if not error %}<div class="availability-empty"><p>Tu próximo partido empieza con una fecha.</p><p>Consulta los horarios disponibles antes de continuar con tu reserva.</p></div>{% endif %}{% endif %}
 </section></div></main>
 <footer class="catalog-footer"><a href="{% url 'users:home' %}">Cancha Lista</a><p>Encuentra, reserva, juega.</p></footer>
-</div></body></html>
+</div>{% include 'chatbot/widget.html' %}
+</body></html>

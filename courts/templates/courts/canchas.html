@@ -39,4 +39,5 @@
 </section>
 {% else %}<section class="catalog-empty"><h3>Este establecimiento no tiene canchas disponibles actualmente.</h3><p>Puedes explorar otros establecimientos para organizar tu partido.</p><a class="button button-outline" href="{% url 'courts:establecimientos' %}">Ver establecimientos</a></section>{% endif %}
 </main><footer class="catalog-footer"><a href="{% url 'users:home' %}">Cancha Lista</a><p>Encuentra, reserva, juega.</p></footer>
-</div></body></html>
+</div>{% include 'chatbot/widget.html' %}
+</body></html>
