@@ -257,3 +257,9 @@ El POST de `/reservas/nueva/<court_id>/` confirma directamente y redirige a `/re
 El usuario ve valor total y una nota explícita de que pagos y abonos están previstos para futuras versiones. Mis reservas no ofrece enlaces a simulación de pago. La ruta antigua de pagos se conserva por compatibilidad, fuera del nuevo recorrido. La disponibilidad conserva sus reglas y su presentación anterior de abono, pendiente de armonizar el contenido con la nueva política en una tarea separada.
 
 Validación: 175 pruebas Django aisladas, incluidos conflictos, CSRF, propiedad, ausencia de pagos y reenvíos; recorrido real en Chrome a 375, 768 y 1440 px con POST de confirmación, recarga de éxito y Mis reservas. Las pruebas no crean reservas en Neon.
+
+## Chatbot público de reservas
+
+El asistente flotante interpreta búsquedas en español con Responses API y Structured Outputs, consulta la disponibilidad existente y dirige al checkout habitual. Está disponible para visitantes y usuarios; conserva la selección durante login/registro y no crea reservas desde el chat.
+
+Configuración, arquitectura, pruebas y límites: [Chatbot de reservas](docs/chatbot-reservas.md).

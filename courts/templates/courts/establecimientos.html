@@ -29,4 +29,5 @@
 </section>
 {% else %}<section class="catalog-empty"><h2>Tu próximo partido está por llegar.</h2><p>Aún no hay establecimientos activos. Vuelve a consultar más adelante.</p><a class="button button-outline" href="{% url 'users:home' %}">Volver al inicio</a></section>{% endif %}
 </main><footer class="catalog-footer"><a href="{% url 'users:home' %}">Cancha Lista</a><p>Encuentra, reserva, juega.</p></footer>
-</div></body></html>
+</div>{% include 'chatbot/widget.html' %}
+</body></html>

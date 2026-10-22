@@ -1,0 +1,15 @@
+{% load static %}
+{% if not navigation_admin %}
+<link rel="stylesheet" href="{% static 'chatbot/widget.css' %}">
+<div class="booking-chat" data-booking-chat data-state="{% url 'chatbot:state' %}" data-message="{% url 'chatbot:message' %}" data-select="{% url 'chatbot:select' %}" data-reset="{% url 'chatbot:reset' %}">
+  <button class="booking-chat-launch" type="button" aria-label="Buscar cancha con el asistente" aria-expanded="false" aria-controls="booking-chat-panel"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M21 11.5a8.5 8.5 0 0 1-8.5 8.5H4l-3 2V11.5a10 10 0 0 1 20 0Z"/><path d="M6 11h10M6 15h6"/></svg></button>
+  <section id="booking-chat-panel" class="booking-chat-panel" role="dialog" aria-labelledby="booking-chat-title" hidden>
+    <header class="booking-chat-header"><div><strong id="booking-chat-title">Tu próximo partido</strong><small>Asistente de Cancha Lista</small></div><button type="button" class="booking-chat-close" aria-label="Cerrar asistente">×</button></header>
+    <div class="booking-chat-log" role="log" aria-label="Conversación" aria-live="polite" aria-relevant="additions"></div>
+    <p class="booking-chat-status" role="status"></p>
+    <form class="booking-chat-form"><label class="booking-chat-sr" for="booking-chat-input">Tu mensaje</label><textarea id="booking-chat-input" rows="2" maxlength="500" placeholder="Ej.: mañana a las 8 en Arena Caribe" required></textarea><button type="submit" aria-label="Enviar mensaje">➜</button></form>
+    <footer class="booking-chat-footer"><button type="button" class="booking-chat-reset">Empezar de nuevo</button><span>Confirma tu reserva en el siguiente paso.</span></footer>
+  </section>
+</div>
+<script src="{% static 'chatbot/widget.js' %}" defer></script>
+{% endif %}
