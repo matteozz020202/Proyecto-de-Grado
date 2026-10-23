@@ -1,6 +1,7 @@
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
+from django.conf import settings
 from django.shortcuts import render, redirect
 from .navigation import is_admin, login_destination
 from .forms import LoginForm, ProfileForm, RegistrationForm
@@ -20,13 +21,12 @@ def featured_court():
 
 
 def court_image_url(court):
-    if court is None or not court.image:
-        return None
+    if court is None or not court.image or not court.image.name:return None
     try:
-        url = court.image.url
-        if url.startswith("/") and not url.startswith("//") and court.image.storage.exists(court.image.name):
-            return url
-    except (OSError, ValueError):
+        if not court.image.storage.exists(court.image.name):return None
+        url=court.image.url
+        if url:return url
+    except (OSError,ValueError,AttributeError):
         pass
     return None
 

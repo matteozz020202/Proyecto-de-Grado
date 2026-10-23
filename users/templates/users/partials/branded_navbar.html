@@ -5,7 +5,7 @@
 {% if not availability_nav and not account_nav and not hide_home %}<a href="{% url 'users:home' %}">Inicio</a>{% endif %}
 <a href="{% url 'courts:establecimientos' %}" {% if not account_nav %}aria-current="page"{% endif %}>Establecimientos</a>
 {% if account_nav %}<a href="{% url 'reservations:mis_reservas' %}" {% if request.resolver_match.url_name == 'mis_reservas' %}aria-current="page"{% endif %}>Mis reservas</a><a href="{% url 'users:profile' %}" {% if request.resolver_match.app_name == 'users' %}aria-current="page"{% endif %}>Mi perfil</a><form method="post" action="{% url 'users:logout' %}">{% csrf_token %}<button class="account-logout" type="submit">Cerrar sesión</button></form>
-{% elif navigation_admin %}<a href="{% url 'reservations:admin_dashboard' %}">Dashboard</a><a href="{% url 'reservations:admin_reservas' %}">Reservas</a>
+{% elif navigation_admin %}<a href="{% url 'reservations:admin_dashboard' %}">Dashboard</a><a href="{% url 'reservations:admin_reservas' %}">Reservas</a><a href="{% url 'courts:admin_canchas' %}">Canchas</a>
 {% elif request.user.is_authenticated %}<a href="{% url 'reservations:mis_reservas' %}">Mis reservas</a><a href="{% url 'users:profile' %}">Mi perfil</a>
 {% else %}<a href="{% url 'users:login' %}">Iniciar sesión</a>{% if not availability_nav %}<a href="{% url 'users:register' %}">Registrarse</a>{% endif %}{% endif %}
 </div>

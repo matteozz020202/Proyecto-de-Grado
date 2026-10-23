@@ -68,6 +68,8 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'cloudinary_storage',
+    'cloudinary',
 
     # Aplicaciones del proyecto
     'users.apps.UsersConfig',
@@ -186,5 +188,18 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 LOGIN_REDIRECT_URL = "courts:establecimientos"
 LOGOUT_REDIRECT_URL = "users:login"
 LOGIN_URL = "users:login"
-MEDIA_URL = "/media/"
-MEDIA_ROOT = BASE_DIR / "media"
+MEDIA_URL="/media/"
+MEDIA_ROOT=BASE_DIR/"media"
+
+CLOUDINARY_URL=os.getenv("CLOUDINARY_URL","").strip()
+
+STORAGES={
+    "default":{
+        "BACKEND":"cloudinary_storage.storage.MediaCloudinaryStorage"
+        if CLOUDINARY_URL else
+        "django.core.files.storage.FileSystemStorage"
+    },
+    "staticfiles":{
+        "BACKEND":"django.contrib.staticfiles.storage.StaticFilesStorage"
+    },
+}
