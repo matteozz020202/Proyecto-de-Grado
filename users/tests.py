@@ -50,7 +50,7 @@ class HomeTests(TestCase):
         with patch.object(court.image.storage, "exists", return_value=False):
             self.assertIsNone(court_image_url(court))
         with patch.object(court.image.storage, "exists", return_value=True):
-            self.assertEqual(court_image_url(court), "/media/courts/missing.jpg")
+            self.assertEqual(court_image_url(court),court.image.url)
 
     def test_group_admin_navigation_and_escaped_names(self):
         self.user.groups.add(Group.objects.create(name="Administrador"))
