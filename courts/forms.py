@@ -13,8 +13,8 @@ class ImageAdminForm(forms.ModelForm):
         image=self.cleaned_data.get("image")
         upload=self.files.get("image")
         if upload:
-            if upload.size>5*1024*1024:
-                raise forms.ValidationError("La imagen no puede superar los 5 MB.")
+            if upload.size>4*1024*1024:
+                raise forms.ValidationError("La imagen no puede superar los 4 MB.")
             if upload.content_type not in {"image/jpeg","image/png","image/webp"}:
                 raise forms.ValidationError("Solo se permiten imágenes JPG, PNG o WebP.")
         return image
