@@ -1,12 +1,11 @@
-from django.urls import include, path
-from django.contrib import admin
-
+from django.urls import path
 
 from . import views
 
 app_name = "reservations"
 
 urlpatterns = [
+    path("admin/usuarios/buscar/", views.admin_buscar_usuarios, name="admin_buscar_usuarios"),
     path("confirmada/<int:reserva_id>/", views.reserva_confirmada, name="reserva_confirmada"),
     path(
         "mis-reservas/",

@@ -9,7 +9,7 @@ from django.contrib.auth.models import Group
 from django.db import transaction
 from django.views.decorators.cache import never_cache
 from courts.models import Court
-
+from courts.access import venues_for_user
 
 def featured_court():
     """Destacado visual determinístico, sin recomendaciones ni disponibilidad implícita."""
@@ -84,13 +84,19 @@ def logout_view(request):
 
 
 @login_required
+@login_required
 def profile_view(request):
-    form = ProfileForm(request.POST or None, instance=request.user)
-    if request.method == "POST" and form.is_valid():
+    form=ProfileForm(request.POST or None,instance=request.user)
+    if request.method=="POST" and form.is_valid():
         form.save()
-        messages.success(request, "Perfil actualizado.")
+        messages.success(request,"Perfil actualizado.")
         return redirect("users:profile")
-    return render(request, "users/account_form.html", {"form": form, "title": "Mi perfil", "profile": True})
+
+    context={"form":form,"title":"Mi perfil","profile":True}
+    if request.user.is_staff or request.user.groups.filter(name="Administrador").exists():
+        context["managed_venues"]=venues_for_user(request.user).order_by("venue_name","venue_id")
+
+    return render(request,"users/account_form.html",context)
 
 
 @never_cache
