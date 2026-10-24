@@ -20,7 +20,7 @@ def login_destination(request, user, next_url=""):
         except Resolver404:
             match = None
         public = {"users:home", "courts:establecimientos", "courts:canchas_establecimiento", "courts:disponibilidad_cancha"}
-        personal={"users:profile","users:password_change","users:password_change_done","reservations:mis_reservas","reservations:resumen_reserva","reservations:pagar_reserva","reservations:reserva_confirmada"}
+        personal={"chatbot:resume","users:profile","users:password_change","users:password_change_done","reservations:mis_reservas","reservations:resumen_reserva","reservations:pagar_reserva","reservations:reserva_confirmada"}
         administrative={"reservations:admin_dashboard","reservations:admin_reservas","reservations:admin_crear_reserva","reservations:admin_detalle_reserva","courts:admin_canchas","courts:admin_editar_establecimiento","courts:admin_editar_cancha"}
         if match and match.view_name in {"reservations:pagar_reserva","reservations:reserva_confirmada"}:
             from reservations.models import Reservation
