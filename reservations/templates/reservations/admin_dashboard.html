@@ -10,21 +10,20 @@
         href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
         rel="stylesheet"
     >
-    <style>
-        .chart-frame { position: relative; height: 280px; width: 100%; }
-        .kpi-value { font-size: clamp(1.2rem, 1.6vw, 1.8rem); overflow-wrap: anywhere; }
-        .kpi-money { font-size: clamp(0.9rem, 1.3vw, 1.4rem); }
-        .court-table { min-width: 640px; }
-        .chart-card { height: 100%; }
-        @media (max-width: 575px) { .chart-frame { height: 240px; } }
-    </style>
+    <link rel="stylesheet" href="{% static 'users/css/home.css' %}">
+    <link rel="stylesheet" href="{% static 'courts/css/catalog.css' %}">
+    <link rel="stylesheet" href="{% static 'reservations/admin_dashboard.css' %}">
+    <script src="{% static 'users/js/home.js' %}" defer></script>
 </head>
 
-<body class="bg-light">
+<body class="admin-dashboard">
+<a class="skip-link" href="#admin-main">Ir al dashboard</a>
 
-{% include 'users/partials/navbar.html' %}
+<div class="admin-nav-shell">
+    {% include 'users/partials/branded_navbar.html' %}
+</div>
 
-<main class="container py-4">
+<main id="admin-main" class="admin-shell" tabindex="-1">
 
     {% if messages %}
         {% for message in messages %}
@@ -41,14 +40,14 @@
         {% endfor %}
     {% endif %}
 
-    <div class="mb-4">
-        <h2 class="mb-1">Dashboard</h2>
+    <div class="mb-4 admin-heading">
+        <h1 class="mb-1">Dashboard</h1>
         <p class="text-muted mb-0">
             Indicadores de reservas y ocupación de Cancha Lista.
         </p>
     </div>
 
-    <form method="get" class="card card-body shadow-sm mb-4">
+    <form method="get" class="card card-body shadow-sm mb-4 admin-filters">
         {{ form.non_field_errors }}
         <div class="row g-3">
             {% for field in form %}
@@ -68,12 +67,12 @@
     </form>
 
     {% if filtros_validos %}
-    <p class="text-muted">
+    <div class="admin-period"><p class="mb-1">
         Período: {{ fecha_inicio|date:"d/m/Y" }} – {{ fecha_fin|date:"d/m/Y" }} (fechas incluidas).
         Todos los indicadores, pagos y agendas se limitan a las reservas del período y filtros seleccionados.
         Los ingresos suman pagos aprobados, incluidos abonos, asociados a esas reservas;
         no representan el valor total de las reservas ni un reporte por fecha de cobro.
-    </p>
+    </p></div>
     {% if datos_sinteticos %}
         <div class="alert alert-info">
             Este resultado utiliza datos sintéticos de demostración y pruebas.
@@ -93,12 +92,12 @@
             Pendientes, canceladas y expiradas no suman ocupación.
         </p>
 
-        <div class="row row-cols-1 row-cols-md-2 row-cols-lg-4 g-3">
+        <div class="row row-cols-1 row-cols-md-2 row-cols-lg-4 g-3 admin-kpis">
 
             <div class="col">
                 <div class="card shadow-sm h-100">
                     <div class="card-body">
-                        <p class="text-muted mb-1">Ocupación</p>
+                        <span class="kpi-icon" aria-hidden="true">◷</span><p class="text-muted mb-1">Ocupación</p>
                         <strong class="kpi-value">
                             {% if ocupacion.ocupacion != None %}
                                 {{ ocupacion.ocupacion|floatformat:2 }}%
@@ -113,7 +112,7 @@
             <div class="col">
                 <div class="card shadow-sm h-100">
                     <div class="card-body">
-                        <p class="text-muted mb-1">Reservas válidas</p>
+                        <span class="kpi-icon" aria-hidden="true">▦</span><p class="text-muted mb-1">Reservas válidas</p>
                         <strong class="kpi-value">
                             {{ dashboard_data.summary.valid_reservations }}
                         </strong>
@@ -127,7 +126,7 @@
             <div class="col">
                 <div class="card shadow-sm h-100">
                     <div class="card-body">
-                        <p class="text-muted mb-1">Horas reservadas</p>
+                        <span class="kpi-icon" aria-hidden="true">◷</span><p class="text-muted mb-1">Horas reservadas</p>
                         <strong class="kpi-value">
                             {{ ocupacion.horas_reservadas|floatformat:2 }}
                         </strong>
@@ -138,7 +137,7 @@
             <div class="col">
                 <div class="card shadow-sm h-100">
                     <div class="card-body">
-                        <p class="text-muted mb-1">Valor de reservas</p>
+                        <span class="kpi-icon" aria-hidden="true">$</span><p class="text-muted mb-1">Valor de reservas</p>
                         <strong class="kpi-value kpi-money">
                             {% language "es-co" %}
                                 ${{ dashboard_data.summary.reservation_value|floatformat:"2g" }}
@@ -151,7 +150,7 @@
             <div class="col">
                 <div class="card shadow-sm h-100">
                     <div class="card-body">
-                        <p class="text-muted mb-1">Abonos aprobados</p>
+                        <span class="kpi-icon" aria-hidden="true">$</span><p class="text-muted mb-1">Abonos aprobados</p>
                         <strong class="kpi-value kpi-money">
                             {% language "es-co" %}
                                 ${{ dashboard_data.summary.approved_deposits|floatformat:"2g" }}
@@ -164,7 +163,7 @@
             <div class="col">
                 <div class="card shadow-sm h-100">
                     <div class="card-body">
-                        <p class="text-muted mb-1">Saldo pendiente</p>
+                        <span class="kpi-icon" aria-hidden="true">◔</span><p class="text-muted mb-1">Saldo pendiente</p>
                         <strong class="kpi-value kpi-money">
                             {% language "es-co" %}
                                 ${{ dashboard_data.summary.pending_balance|floatformat:"2g" }}
@@ -177,7 +176,7 @@
             <div class="col">
                 <div class="card shadow-sm h-100">
                     <div class="card-body">
-                        <p class="text-muted mb-1">Cancelación</p>
+                        <span class="kpi-icon" aria-hidden="true">×</span><p class="text-muted mb-1">Cancelación</p>
                         <strong class="kpi-value">
                             {% if dashboard_data.summary.cancellation_rate != None %}
                                 {{ dashboard_data.summary.cancellation_rate|floatformat:2 }}%
@@ -199,7 +198,7 @@
             menos sus pagos aprobados.
         </p>
     </section>
-    <section class="card shadow-sm mb-4">
+    <section class="card shadow-sm mb-4 admin-patterns">
         <div class="card-body">
 
             <h3 class="h5 mb-3">
@@ -309,7 +308,7 @@
             </div></section>
         </div>
         <div class="col-12 col-lg-6">
-            <section class="card shadow-sm h-100" aria-labelledby="insights-title"><div class="card-body">
+            <section class="card shadow-sm h-100 admin-insights" aria-labelledby="insights-title"><div class="card-body">
                 <h3 id="insights-title" class="h5">Insights del período</h3>
                 <p class="text-muted small">Análisis de los filtros aplicados: {{ fecha_inicio|date:"d/m/Y" }}–{{ fecha_fin|date:"d/m/Y" }}.
                     {% if form.cleaned_data.establecimiento %}{{ form.cleaned_data.establecimiento.venue_name }}.{% endif %}
@@ -318,7 +317,7 @@
                 <form id="dashboard-analysis-form" method="post" action="{% url 'reservations:admin_dashboard_analysis' %}">
                     {% csrf_token %}
                     {% for name, value in analysis_filters.items %}<input type="hidden" name="{{ name }}" value="{{ value }}">{% endfor %}
-                    <button type="submit" class="btn btn-success" id="generate-analysis" {% if not analysis_enabled %}disabled{% endif %}>Generar análisis</button>
+                    <button type="submit" class="btn btn-success" id="generate-analysis" {% if not analysis_enabled %}disabled{% endif %}>✨ Generar análisis</button>
                 </form>
                 {% if analysis_block_reason %}<p class="text-muted small mt-2">{{ analysis_block_reason }}</p>{% endif %}
                 <noscript><p class="text-muted mt-2">Activa JavaScript para solicitar el análisis inteligente.</p></noscript>
@@ -342,6 +341,7 @@
             </tr>{% empty %}<tr><td colspan="5">No hay canchas para los filtros seleccionados.</td></tr>{% endfor %}</tbody>
         </table></div>
     </div></section>
+
 
     <details class="card card-body mb-4">
         <summary>Detalle económico y operativo del contexto</summary>

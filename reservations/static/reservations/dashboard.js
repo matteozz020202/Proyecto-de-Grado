@@ -2,8 +2,24 @@
     const payload = document.getElementById('dashboard-chart-data');
     if (!payload) return;
     const data = JSON.parse(payload.textContent);
+    const operations = document.getElementById('reservas-administrativas');
+    const revealOperations = () => {
+        if (operations && window.location.hash === '#reservas-administrativas') operations.open = true;
+    };
+    window.addEventListener('hashchange', revealOperations);
+    revealOperations();
     const number = new Intl.NumberFormat('es-CO', {maximumFractionDigits: 2});
     const missingLibrary = typeof Chart === 'undefined';
+    const lime = getComputedStyle(document.documentElement).getPropertyValue('--brand-lime').trim() || '#32FF00';
+    if (!missingLibrary) {
+        Chart.defaults.color = '#bfcec3';
+        Chart.defaults.borderColor = 'rgba(214,240,215,.09)';
+        Chart.defaults.font.family = 'Arial, Helvetica, sans-serif';
+        Chart.defaults.plugins.tooltip.backgroundColor = '#152b1e';
+        Chart.defaults.plugins.tooltip.titleColor = '#f3f7f0';
+        Chart.defaults.plugins.tooltip.bodyColor = '#dce9db';
+        if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) Chart.defaults.animation = false;
+    }
 
     function empty(canvas, id, message) {
         canvas.parentElement.hidden = true;
@@ -28,12 +44,15 @@
             data: {
                 labels: rows.map(row => row.label),
                 datasets: [{label: 'Ocupación', data: rows.map(row => row.occupancy_rate),
-                    backgroundColor: '#198754', borderColor: '#146c43', borderWidth: 2,
+                    backgroundColor: type === 'bar' ? 'rgba(50,255,0,.65)' : lime, borderColor: lime, borderWidth: 2,
                     tension: 0.2, spanGaps: false}]
             },
             options: {
                 responsive: true, maintainAspectRatio: false,
-                scales: {y: {min: 0, max: 100, title: {display: true, text: 'Ocupación %'}}},
+                scales: {
+                    x: {grid: {display: false}, ticks: {maxRotation: 45, minRotation: type === 'line' ? 40 : 0, autoSkip: true}},
+                    y: {min: 0, max: 100, title: {display: true, text: 'Ocupación %'}}
+                },
                 plugins: {
                     legend: {display: false},
                     tooltip: {callbacks: {label: context => {
@@ -57,16 +76,16 @@
         empty(canvas, 'status-empty', 'No se pudo cargar el gráfico. Consulta la tabla de datos.');
         canvas.closest('section').querySelector('details').open = true;
     } else {
-        const colors = {PENDING_PAYMENT: '#ffc107', CONFIRMED: '#0d6efd', COMPLETED: '#198754',
-            CANCELLED: '#dc3545', EXPIRED: '#6c757d'};
+        const colors = {PENDING_PAYMENT: '#e9c96a', CONFIRMED: lime, COMPLETED: '#98ca9b',
+            CANCELLED: '#ed7972', EXPIRED: '#7b8d84'};
         new Chart(canvas, {
             type: 'doughnut',
             data: {labels: statuses.map(row => row.label), datasets: [{
                 data: statuses.map(row => row.count),
-                backgroundColor: statuses.map(row => colors[row.status])
+                backgroundColor: statuses.map(row => colors[row.status]), borderColor: '#0c1c15', borderWidth: 3
             }]},
-            options: {responsive: true, maintainAspectRatio: false,
-                plugins: {legend: {position: 'bottom'}}}
+            options: {responsive: true, maintainAspectRatio: false, cutout: '68%',
+                plugins: {legend: {position: 'bottom', labels: {usePointStyle: true, padding: 16, boxWidth: 9}}}}
         });
     }
 })();
