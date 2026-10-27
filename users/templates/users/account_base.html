@@ -1,3 +1,3 @@
-{% extends 'reservations/booking_base.html' %}{% load static %}
+{% extends navigation_admin|yesno:"users/admin_base.html,reservations/booking_base.html" %}{% load static %}
 {% block extra_head %}<link rel="stylesheet" href="{% static 'users/css/account.css' %}"><script src="{% static 'users/js/account.js' %}" defer></script>{% endblock %}
 {% block navbar %}{% if navigation_admin and request.resolver_match.app_name == 'users' %}{% include 'users/partials/branded_navbar.html' with admin_nav=True admin_profile=True %}{% else %}{% include 'users/partials/branded_navbar.html' with account_nav=True %}{% endif %}{% endblock %}
