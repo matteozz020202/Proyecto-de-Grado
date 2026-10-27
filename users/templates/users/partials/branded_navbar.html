@@ -1,30 +1,23 @@
 {% load static %}
 <nav class="home-nav catalog-nav" aria-label="Navegación principal">
 
-<a class="nav-brand" href="{% url 'users:home' %}" aria-label="Cancha Lista, inicio">
+<a class="nav-brand" href="{% if admin_nav %}{% url 'reservations:admin_dashboard' %}{% else %}{% url 'users:home' %}{% endif %}" aria-label="Cancha Lista{% if not admin_nav %}, inicio{% endif %}">
     <span class="brand-wordmark">
         <img src="{% static 'users/images/logo-horizontal.png' %}" alt="Cancha Lista" width="1366" height="768">
     </span>
 </a>
 
-<div class="nav-links">
+{% if admin_nav %}<button type="button" class="admin-nav-toggle" aria-expanded="false" aria-controls="admin-navigation" aria-label="Abrir navegación administrativa">☰</button>{% endif %}
+<div class="nav-links"{% if admin_nav %} id="admin-navigation"{% endif %}>
 
 {% if admin_nav %}
-<a href="{% url 'reservations:admin_dashboard' %}">Dashboard</a>
-
-<a href="{% url 'reservations:admin_reservas' %}">Reservas</a>
-
-<a href="{% url 'courts:admin_canchas' %}">Canchas</a>
-
-<a href="{% url 'users:profile' %}" {% if admin_profile %}aria-current="page"{% endif %}>
-    Mi perfil
-</a>
-
-<form method="post" action="{% url 'users:logout' %}">
-    {% csrf_token %}
-    <button class="account-logout" type="submit">Cerrar sesión</button>
-</form>
-
+{% with current=request.resolver_match.url_name app=request.resolver_match.app_name %}
+<a href="{% url 'reservations:admin_dashboard' %}"{% if current == 'admin_dashboard' %} aria-current="page"{% endif %}>Dashboard</a>
+<a href="{% url 'reservations:admin_reservas' %}"{% if current == 'admin_reservas' or current == 'admin_crear_reserva' or current == 'admin_detalle_reserva' %} aria-current="page"{% endif %}>Reservas</a>
+<a href="{% url 'courts:admin_canchas' %}"{% if app == 'courts' %} aria-current="page"{% endif %}>Canchas</a>
+<a href="{% url 'users:profile' %}"{% if app == 'users' %} aria-current="page"{% endif %}>Mi perfil</a>
+<form class="admin-logout" method="post" action="{% url 'users:logout' %}">{% csrf_token %}<button class="account-logout" type="submit">Cerrar sesión</button></form>
+{% endwith %}
 {% elif account_nav %}
 <a href="{% url 'courts:establecimientos' %}">Establecimientos</a>
 
@@ -71,7 +64,7 @@
 
 </div>
 
-{% if request.user.is_authenticated %}
+{% if request.user.is_authenticated and not admin_nav %}
 <details class="account-menu">
     <summary aria-label="Opciones de la cuenta de {{ request.user.username }}">
         <span class="account-avatar" aria-hidden="true">{{ request.user.username|slice:':1'|upper }}</span>

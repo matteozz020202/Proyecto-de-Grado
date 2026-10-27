@@ -1,4 +1,5 @@
 from datetime import timedelta
+from calendar import monthrange
 
 from django import forms
 from django.utils import timezone
@@ -9,6 +10,12 @@ from .models import Reservation
 
 
 class DashboardFilterForm(forms.Form):
+    periodo = forms.ChoiceField(label="Período", choices=[("day", "Día"), ("month", "Mes")])
+    fecha = forms.DateField(label="Fecha", required=False, input_formats=["%Y-%m-%d"],
+                            widget=forms.DateInput(format="%Y-%m-%d", attrs={"type": "date"}))
+    mes = forms.DateField(label="Mes", required=False, input_formats=["%Y-%m"],
+                          widget=forms.DateInput(format="%Y-%m", attrs={"type": "month"}))
+
     origen = forms.ChoiceField(
         label="Origen",
         choices=Reservation.DATA_SOURCES + [
@@ -103,6 +110,24 @@ class DashboardFilterForm(forms.Form):
             if key in params
         })
 
+        # Las URLs antiguas y el contrato de análisis siguen aceptando rangos.
+        self.period_mode = params.get("periodo", "day") if "periodo" in params or not any(
+            key in params for key in ("fecha_inicio", "fecha_fin")
+        ) else None
+        data.update({"periodo": self.period_mode or "day",
+                     "fecha": params.get("fecha", data["fecha_inicio"] if self.period_mode is None else today.isoformat()),
+                     "mes": params.get("mes", today.strftime("%Y-%m"))})
+        if self.period_mode in ("day", "month"):
+            field = "fecha" if self.period_mode == "day" else "mes"
+            try:
+                selected = self.base_fields[field].clean(data[field])
+            except forms.ValidationError:
+                selected = None  # El campo visible mostrará el error al validar.
+            if selected:
+                start = selected if field == "fecha" else selected.replace(day=1)
+                end = start if field == "fecha" else start.replace(day=monthrange(start.year, start.month)[1])
+                data.update(fecha_inicio=start.isoformat(), fecha_fin=end.isoformat())
+
         if data["origen"] not in dict(
             self.base_fields["origen"].choices
         ):
@@ -182,6 +207,13 @@ class DashboardFilterForm(forms.Form):
 
     def clean(self):
         data = super().clean()
+        if self.period_mode in ("day", "month"):
+            field = "fecha" if self.period_mode == "day" else "mes"
+            if not data.get(field) and field not in self.errors:
+                self.add_error(field, "Selecciona una fecha." if field == "fecha" else "Selecciona un mes.")
+        # Mantener exactamente el contrato de filtros consumido por KPIs e IA.
+        for field in ("periodo", "fecha", "mes"):
+            data.pop(field, None)
 
         venue = data.get(
             "establecimiento"
@@ -233,6 +265,7 @@ class DashboardFilterForm(forms.Form):
                 data.get("tipo")
                 == "HISTORICAL"
                 and end > today
+                and not (self.period_mode == "month" and start <= today <= end)
             ):
                 self.add_error(
                     "fecha_fin",
@@ -245,6 +278,7 @@ class DashboardFilterForm(forms.Form):
                 data.get("tipo")
                 == "FUTURE"
                 and start < today
+                and not (self.period_mode == "month" and start <= today <= end)
             ):
                 self.add_error(
                     "fecha_inicio",
