@@ -1,57 +1,3 @@
-.admin-courts-body{
-    min-height:100vh;
-    margin:0;
-    color:var(--home-white);
-    background:var(--home-carbon);
-    isolation:isolate;
-}
-
-.admin-courts-body::before{
-    content:"";
-    position:fixed;
-    inset:0;
-    z-index:-1;
-    background:
-        linear-gradient(rgba(5,8,4,.48),rgba(5,8,4,.72)),
-        var(--admin-bg) center/cover no-repeat;
-}
-
-.admin-courts-body .home-nav{
-    width:min(1660px,calc(100% - 32px));
-    margin:16px auto 0;
-}
-
-.admin-courts-page{
-    width:min(1180px,calc(100% - 32px));
-    max-width:none;
-    padding-top:68px!important;
-    padding-bottom:70px!important;
-}
-
-.admin-courts-shell{
-    padding:32px;
-    border:1px solid var(--home-border);
-    border-radius:32px;
-    background:rgba(49,54,46,.88);
-    box-shadow:0 26px 70px rgba(0,0,0,.3);
-    backdrop-filter:blur(20px);
-}
-
-.admin-courts-title{
-    margin:0;
-    color:#fff;
-    font-size:clamp(34px,4vw,48px);
-    font-weight:900;
-    line-height:1;
-    letter-spacing:-.045em;
-}
-
-.admin-courts-description{
-    margin:10px 0 30px;
-    color:var(--home-muted);
-    font-size:15px;
-}
-
 .venue-admin-card{
     overflow:hidden;
     margin-bottom:24px;
@@ -107,25 +53,6 @@
     font-size:14px;
 }
 
-.admin-edit-btn{
-    display:inline-flex;
-    align-items:center;
-    justify-content:center;
-    min-height:42px;
-    padding:10px 18px;
-    border:1px solid var(--brand-lime);
-    border-radius:12px;
-    background:transparent;
-    color:var(--brand-lime);
-    font-size:13px;
-    font-weight:800;
-    white-space:nowrap;
-}
-
-.admin-edit-btn:hover{
-    background:var(--brand-lime);
-    color:#0a1006;
-}
 
 .courts-admin-grid{
     display:grid;
@@ -184,28 +111,6 @@
     text-align:center;
 }
 
-.admin-form-card{
-    width:min(760px,100%);
-    margin:0 auto;
-    padding:30px;
-    border:1px solid var(--home-border);
-    border-radius:26px;
-    background:rgba(32,43,27,.72);
-}
-
-.admin-form-card h1{
-    margin:0;
-    color:#fff;
-    font-size:34px;
-    font-weight:900;
-    letter-spacing:-.04em;
-}
-
-.admin-form-subtitle{
-    margin:10px 0 26px;
-    color:var(--home-muted);
-    font-size:14px;
-}
 
 .admin-current-image{
     width:100%;
@@ -221,34 +126,12 @@
     margin-bottom:20px;
 }
 
-.admin-form-group label{
-    display:block;
-    margin-bottom:8px;
-    color:#f4f7f2;
-    font-size:13px;
-    font-weight:700;
-}
-
-.admin-form-group .form-control{
-    min-height:46px;
-    border:1px solid rgba(255,255,255,.15);
-    border-radius:12px;
-    background:#171c15;
-    color:#fff;
-    box-shadow:none;
-}
 
 .admin-form-group textarea.form-control{
     min-height:120px;
     resize:vertical;
 }
 
-.admin-form-group .form-control:focus{
-    border-color:var(--brand-lime);
-    background:#171c15;
-    color:#fff;
-    box-shadow:0 0 0 3px rgba(50,255,0,.12);
-}
 
 
 .image-file-input{
@@ -305,13 +188,6 @@
     margin-right:6px;
 }
 
-.admin-form-group .errorlist{
-    margin:7px 0 0;
-    padding:0;
-    list-style:none;
-    color:#ff8d97;
-    font-size:12px;
-}
 
 .admin-form-actions{
     display:flex;
@@ -320,61 +196,20 @@
     margin-top:28px;
 }
 
-.admin-save-btn{
-    min-height:44px;
-    padding:10px 22px;
-    border:1px solid var(--brand-lime);
-    border-radius:12px;
-    background:var(--brand-lime);
-    color:#0a1006;
-    font-weight:800;
-}
-
-.admin-save-btn:hover{
-    background:#54ff2a;
-    color:#0a1006;
-}
-
-.admin-cancel-btn{
-    min-height:44px;
-    padding:10px 22px;
-    border:1px solid rgba(255,255,255,.22);
-    border-radius:12px;
-    background:transparent;
-    color:#fff;
-    font-weight:700;
-}
-
-.admin-cancel-btn:hover{
-    border-color:#fff;
-    color:#fff;
-}
-
-.admin-courts-page .alert{
-    border:1px solid var(--home-border);
-    border-radius:15px;
-    background:#171c15;
-    color:#fff;
-}
 
 @media(max-width:900px){
-    .admin-courts-body .home-nav{width:calc(100% - 24px)}
-    .admin-courts-page{width:calc(100% - 24px);padding-top:48px!important}
-    .admin-courts-shell{padding:24px;border-radius:26px}
+
     .venue-admin-header{grid-template-columns:150px minmax(0,1fr)}
     .venue-admin-header .admin-edit-btn{grid-column:1/-1}
     .courts-admin-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
 }
 
 @media(max-width:600px){
-    .admin-courts-page{width:calc(100% - 20px);padding-top:34px!important}
-    .admin-courts-shell{padding:17px;border-radius:22px}
-    .admin-courts-title{font-size:34px}
+
     .venue-admin-header{grid-template-columns:1fr}
     .venue-admin-image,.image-placeholder{height:190px}
     .courts-admin-grid{grid-template-columns:1fr;padding:16px}
-    .admin-form-card{padding:20px;border-radius:22px}
-    .admin-form-card h1{font-size:29px}
+
     .admin-form-actions{flex-direction:column-reverse}
     .admin-save-btn,.admin-cancel-btn{width:100%;text-align:center}
 }
