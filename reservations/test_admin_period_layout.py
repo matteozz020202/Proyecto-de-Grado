@@ -48,12 +48,17 @@ class AdminPeriodLayoutTests(TestCase):
                 self.assertEqual(form.cleaned_data['fecha_inicio'], date.fromisoformat(month+'-01'))
                 self.assertEqual(form.cleaned_data['fecha_fin'], date.fromisoformat(month+f'-{last}'))
 
-    def test_current_month_is_complete_in_both_modes(self):
-        for kind in ('HISTORICAL', 'FUTURE'):
-            form = self.form(periodo='month', mes='2026-10', tipo=kind)
-            self.assertTrue(form.is_valid(), form.errors)
-            self.assertEqual(form.cleaned_data['fecha_inicio'], date(2026, 10, 1))
-            self.assertEqual(form.cleaned_data['fecha_fin'], date(2026, 10, 31))
+    @patch('django.utils.timezone.localdate',return_value=date(2026,10,27))
+    def test_current_month_respects_analysis_type(self,mocked_localdate):
+        historical=self.form(periodo='month',mes='2026-10',tipo='HISTORICAL')
+        self.assertTrue(historical.is_valid(),historical.errors)
+        self.assertEqual(historical.cleaned_data['fecha_inicio'],date(2026,10,1))
+        self.assertEqual(historical.cleaned_data['fecha_fin'],date(2026,10,27))
+
+        future=self.form(periodo='month',mes='2026-10',tipo='FUTURE')
+        self.assertTrue(future.is_valid(),future.errors)
+        self.assertEqual(future.cleaned_data['fecha_inicio'],date(2026,10,27))
+        self.assertEqual(future.cleaned_data['fecha_fin'],date(2026,10,31))
 
     def test_bad_input_and_incompatible_period_are_rejected(self):
         for data in [dict(periodo='month', mes='2026-13'), dict(periodo='month', mes=''),

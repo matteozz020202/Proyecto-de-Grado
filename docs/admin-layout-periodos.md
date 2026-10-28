@@ -36,7 +36,7 @@ El formulario elimina los tres campos de presentación de `cleaned_data` antes d
 
 Las URLs antiguas con `fecha_inicio/fecha_fin`, sin `periodo`, continúan aceptándose. Al aplicar el nuevo formulario se usa Día o Mes. El POST del análisis sigue usando el rango canónico existente, sin añadir campos de UI al contrato.
 
-Para permitir el mes actual completo, ambos tipos de análisis aceptan ese mes aunque cruce hoy. Se conservan los rechazos de meses enteramente futuros para histórico y meses enteramente pasados para programado, así como las restricciones previas de los rangos antiguos. Las reglas y cálculos históricos/programados de los servicios permanecen intactos.
+Cuando se selecciona el mes actual, el rango se ajusta según el tipo de análisis. Para Histórico se utiliza desde el primer día del mes hasta el día actual; para Programado se utiliza desde el día actual hasta el último día del mes. Los meses completamente futuros continúan siendo inválidos para Histórico y los meses completamente pasados continúan siendo inválidos para Programado.
 
 ## Validación
 
@@ -46,7 +46,7 @@ node --check users/static/users/js/admin.js
 node --test tests/dashboard_insights.test.cjs
 ```
 
-Cobertura añadida: día, mes, febrero bisiesto/no bisiesto, meses de 30/31 días, diciembre, entradas inválidas, mes actual en ambos análisis, zona horaria, compatibilidad de rangos, equivalencia de KPIs/gráficos/contrato y ownership. Se verifica el componente y sección activa de diez páginas administrativas y la separación del layout del usuario común.
+Cobertura añadida: día, mes, febrero bisiesto/no bisiesto, meses de 30/31 días, diciembre, entradas inválidas, ajuste del mes actual según análisis histórico o programado, zona horaria, compatibilidad de rangos, equivalencia de KPIs/gráficos/contrato y ownership. Se verifica el componente y sección activa de diez páginas administrativas y la separación del layout del usuario común.
 
 Prueba de Chrome con una base aislada en 1440, 768 y 375 px: diez vistas, navbar móvil/desktop, logout, Escape, ausencia de scroll horizontal general, selección y envío Día/Mes, Chart.js y autocomplete de usuario. No se crean ni modifican reservas durante esta comprobación.
 

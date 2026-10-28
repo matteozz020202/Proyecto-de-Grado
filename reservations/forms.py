@@ -75,16 +75,30 @@ class DashboardFilterForm(forms.Form):
         **kwargs
     ):
         params = params or {}
-
         today = timezone.localdate()
-        analysis_type = params.get(
-            "tipo",
-            "HISTORICAL"
-        )
 
+        analysis_type = params.get("tipo", "HISTORICAL")
         future = analysis_type == "FUTURE"
 
+        legacy_range = bool(
+            params.get("fecha_inicio")
+            or params.get("fecha_fin")
+        )
+
+        if "periodo" in params:
+            self.period_mode = params.get("periodo", "")
+        elif legacy_range:
+            self.period_mode = ""
+        else:
+            self.period_mode = "day"
+
         data = {
+            "periodo": params.get("periodo", "day"),
+            "fecha": params.get(
+                "fecha",
+                today.isoformat() if not legacy_range else ""
+            ),
+            "mes": params.get("mes", ""),
             "origen": "SYSTEM",
             "establecimiento": "",
             "cancha": "",
@@ -110,24 +124,45 @@ class DashboardFilterForm(forms.Form):
             if key in params
         })
 
-        # Las URLs antiguas y el contrato de análisis siguen aceptando rangos.
-        self.period_mode = params.get("periodo", "day") if "periodo" in params or not any(
-            key in params for key in ("fecha_inicio", "fecha_fin")
-        ) else None
-        data.update({"periodo": self.period_mode or "day",
-                     "fecha": params.get("fecha", data["fecha_inicio"] if self.period_mode is None else today.isoformat()),
-                     "mes": params.get("mes", today.strftime("%Y-%m"))})
+        # Las URLs antiguas continúan aceptando fecha_inicio y fecha_fin.
         if self.period_mode in ("day", "month"):
             field = "fecha" if self.period_mode == "day" else "mes"
-            try:
-                selected = self.base_fields[field].clean(data[field])
-            except forms.ValidationError:
-                selected = None  # El campo visible mostrará el error al validar.
-            if selected:
-                start = selected if field == "fecha" else selected.replace(day=1)
-                end = start if field == "fecha" else start.replace(day=monthrange(start.year, start.month)[1])
-                data.update(fecha_inicio=start.isoformat(), fecha_fin=end.isoformat())
 
+            try:
+                selected = self.base_fields[field].clean(
+                    data.get(field)
+                )
+            except forms.ValidationError:
+                selected = None
+
+            if selected:
+                start = (
+                    selected
+                    if field == "fecha"
+                    else selected.replace(day=1)
+                )
+
+                end = (
+                    start
+                    if field == "fecha"
+                    else start.replace(
+                        day=monthrange(
+                            start.year,
+                            start.month
+                        )[1]
+                    )
+                )
+
+                if field == "mes" and start <= today <= end:
+                    if analysis_type == "HISTORICAL":
+                        end = today
+                    elif analysis_type == "FUTURE":
+                        start = today
+
+                data.update(
+                    fecha_inicio=start.isoformat(),
+                    fecha_fin=end.isoformat()
+                )
         if data["origen"] not in dict(
             self.base_fields["origen"].choices
         ):
@@ -265,7 +300,6 @@ class DashboardFilterForm(forms.Form):
                 data.get("tipo")
                 == "HISTORICAL"
                 and end > today
-                and not (self.period_mode == "month" and start <= today <= end)
             ):
                 self.add_error(
                     "fecha_fin",
@@ -278,7 +312,6 @@ class DashboardFilterForm(forms.Form):
                 data.get("tipo")
                 == "FUTURE"
                 and start < today
-                and not (self.period_mode == "month" and start <= today <= end)
             ):
                 self.add_error(
                     "fecha_inicio",
