@@ -63,7 +63,27 @@ CSRF_TRUSTED_ORIGINS = [
 # Túnel HTTPS opcional para desarrollo local. No se acepta en producción
 # ni se amplía ALLOWED_HOSTS con comodines.
 LOCAL_TUNNEL_URL = os.getenv("LOCAL_TUNNEL_URL", "").strip().rstrip("/")
-WOMPI_PUBLIC_BASE_URL = ""
+WOMPI_PUBLIC_BASE_URL = os.getenv(
+    "WOMPI_PUBLIC_BASE_URL",
+    "",
+).strip().rstrip("/")
+
+if WOMPI_PUBLIC_BASE_URL:
+    wompi_public_origin = urlparse(WOMPI_PUBLIC_BASE_URL)
+
+    if (
+        wompi_public_origin.scheme != "https"
+        or not wompi_public_origin.hostname
+        or wompi_public_origin.username
+        or wompi_public_origin.password
+        or wompi_public_origin.port not in (None, 443)
+        or wompi_public_origin.path not in ("", "/")
+        or wompi_public_origin.query
+        or wompi_public_origin.fragment
+    ):
+        raise ValueError(
+            "WOMPI_PUBLIC_BASE_URL debe ser un origen HTTPS publico valido."
+        )
 
 if LOCAL_TUNNEL_URL:
     tunnel = urlparse(LOCAL_TUNNEL_URL)
