@@ -7,7 +7,7 @@ from django.db import transaction
 from django.utils import timezone
 
 from courts.models import Court, CourtSchedule
-from reservations.models import Reservation, Payment
+from reservations.models import Reservation, Payment, WompiTransaction
 
 
 BLOCKING_RESERVATION_STATUSES = [
@@ -43,23 +43,131 @@ def validate_minimum_booking_advance(reservation_date, start_time):
             "1 hora de anticipación."
         )
 
+
+
 def expire_pending_reservations():
     """
-    Marks as EXPIRED all PENDING_PAYMENT reservations
-    whose temporary hold has expired.
+    Expira reservas pendientes cuyo bloqueo temporal
+    terminó y que no tienen un pago Wompi pendiente.
+
+    Cada reserva se comprueba dentro de una
+    transacción con bloqueo de fila.
+
+    Los pagos Wompi pendientes deberán resolverse
+    posteriormente mediante conciliación.
     """
 
     now = timezone.now()
 
-    count = Reservation.objects.filter(
-        reservation_status="PENDING_PAYMENT",
-        hold_expires_at__isnull=False,
-        hold_expires_at__lte=now
-    ).update(
-        reservation_status="EXPIRED"
+    candidate_ids = list(
+        Reservation.objects.filter(
+            reservation_status="PENDING_PAYMENT",
+            hold_expires_at__isnull=False,
+            hold_expires_at__lte=now,
+        ).values_list("pk", flat=True)
     )
 
-    return count
+    expired_count = 0
+
+    for reservation_id in candidate_ids:
+
+        with transaction.atomic():
+
+            reservation = (
+                Reservation.objects
+                .select_for_update()
+                .get(pk=reservation_id)
+            )
+
+            # Revalidar después de obtener el bloqueo.
+            if reservation.reservation_status != "PENDING_PAYMENT":
+                continue
+
+            if (
+                reservation.hold_expires_at is None
+                or reservation.hold_expires_at > timezone.now()
+            ):
+                continue
+
+            # Comprobar intentos pendientes mientras
+            # mantenemos bloqueada la reserva.
+            has_pending_wompi_payment = (
+                Payment.objects.filter(
+                    reservation=reservation,
+                    provider="WOMPI",
+                    payment_status="PENDING",
+                ).exists()
+            )
+
+            if has_pending_wompi_payment:
+                            continue
+
+            # Un Payment puede tener varias transacciones.
+            # Aunque el estado general sea DECLINED,
+            # otra transaccion puede seguir PENDING.
+            has_pending_wompi_transaction = (
+                WompiTransaction.objects.filter(
+                    payment__reservation=reservation,
+                    payment__provider="WOMPI",
+                    status="PENDING",
+                ).exists()
+            )
+
+            if has_pending_wompi_transaction:
+                continue
+
+            # No liberar automáticamente reservas
+            # con excepciones financieras sin resolver.
+            requires_financial_review = (
+                Payment.objects.filter(
+                    reservation=reservation,
+                    provider="WOMPI",
+                    requires_reconciliation=True,
+                ).exists()
+            )
+
+            if requires_financial_review:
+                continue
+
+            # Nunca liberar automaticamente una reserva
+            # si existe evidencia de un abono aprobado.
+            has_approved_wompi_payment = (
+                Payment.objects.filter(
+                    reservation=reservation,
+                    provider="WOMPI",
+                    payment_status="APPROVED",
+                ).exists()
+            )
+
+            if has_approved_wompi_payment:
+                continue
+
+            # Proteger tambien el historial individual.
+            # Payment puede conservar un estado antiguo
+            # o inconsistente respecto a WompiTransaction.
+            has_approved_wompi_transaction = (
+                WompiTransaction.objects.filter(
+                    payment__reservation=reservation,
+                    payment__provider="WOMPI",
+                    status="APPROVED",
+                ).exists()
+            )
+
+            if has_approved_wompi_transaction:
+                continue
+
+            reservation.reservation_status = "EXPIRED"
+
+
+            reservation.save(
+                update_fields=["reservation_status"]
+            )
+
+            expired_count += 1
+
+    return expired_count
+
+
 
 
 def get_availability(
@@ -249,6 +357,19 @@ def create_pending_reservation(
     - Remaining amount.
     - Hold expiration time.
     """
+
+    # Bloquear la cancha durante la creación de la reserva.
+    # Esto evita que dos solicitudes concurrentes creen
+    # reservas para el mismo horario.
+    #
+    # El bloqueo permanece hasta finalizar la transacción.
+    court = (
+        Court.objects
+        .select_related("venue")
+        .select_for_update()
+        .get(pk=court.pk)
+    )
+
 
     # Expire reservations whose hold already ended.
     expire_pending_reservations()
@@ -537,3 +658,160 @@ def complete_reservation(reservation):
     reservation.reservation_status="COMPLETED"
     reservation.save(update_fields=["reservation_status"])
     return reservation
+
+
+@transaction.atomic
+def create_wompi_payment_attempt(reservation):
+    """
+    Registra o reutiliza un intento pendiente
+    de pago del abono mediante Wompi Sandbox.
+
+    No realiza solicitudes a Wompi.
+    No aprueba pagos ni confirma reservas.
+    """
+
+    reservation = (
+        Reservation.objects
+        .select_for_update()
+        .get(pk=reservation.pk)
+    )
+
+    if reservation.reservation_status != "PENDING_PAYMENT":
+        raise ValidationError(
+            "La reserva no está pendiente de pago."
+        )
+
+    if (
+        reservation.hold_expires_at is None
+        or reservation.hold_expires_at <= timezone.now()
+    ):
+        raise ValidationError(
+            "El tiempo de la reserva ha vencido."
+        )
+
+    if reservation.deposit_required <= 0:
+        raise ValidationError(
+            "El abono debe ser mayor que cero."
+        )
+
+    # Evitar crear varios intentos pendientes
+    # para la misma reserva.
+    existing_payment = (
+        Payment.objects
+        .filter(
+            reservation=reservation,
+            provider="WOMPI",
+            payment_type="DEPOSIT",
+            payment_status="PENDING",
+        )
+        .order_by("-created_at", "-pk")
+        .first()
+    )
+
+    if existing_payment is not None:
+        return existing_payment
+
+    reference = f"CL-{reservation.pk}-{uuid4().hex}"
+
+    payment = Payment.objects.create(
+        reservation=reservation,
+        amount=reservation.deposit_required,
+        payment_type="DEPOSIT",
+        payment_status="PENDING",
+        provider="WOMPI",
+        transaction_reference=reference,
+        currency="COP",
+    )
+
+    return payment
+
+@transaction.atomic
+def create_wompi_retry_attempt(reservation):
+    """Crea un nuevo intento solo tras un rechazo Wompi verificado."""
+
+    reservation = (
+        Reservation.objects.select_for_update().get(pk=reservation.pk)
+    )
+
+    if reservation.reservation_status != "PENDING_PAYMENT":
+        raise ValidationError("La reserva no esta pendiente de pago.")
+
+    if (
+        reservation.hold_expires_at is None
+        or reservation.hold_expires_at <= timezone.now()
+    ):
+        raise ValidationError("El tiempo de la reserva ha vencido.")
+
+    payments = list(
+        Payment.objects.select_for_update()
+        .filter(
+            reservation=reservation,
+            provider="WOMPI",
+            payment_type="DEPOSIT",
+        )
+        .order_by("created_at", "pk")
+    )
+    transactions = list(
+        WompiTransaction.objects.select_for_update().filter(
+            payment__in=payments
+        )
+    )
+
+    if any(payment.requires_reconciliation for payment in payments):
+        raise ValidationError(
+            "El pago requiere revision antes de reintentarlo."
+        )
+
+    if any(payment.payment_status == "APPROVED" for payment in payments):
+        raise ValidationError("La reserva ya tiene un pago aprobado.")
+
+    if any(
+        wompi_transaction.status in {"PENDING", "APPROVED"}
+        for wompi_transaction in transactions
+    ):
+        raise ValidationError(
+            "Existe una transaccion que todavia no permite reintentar."
+        )
+
+    pending_payments = [
+        payment
+        for payment in payments
+        if payment.payment_status == "PENDING"
+    ]
+    if pending_payments:
+        pending = pending_payments[-1]
+        if (
+            pending.provider_transaction_id
+            or any(
+                wompi_transaction.payment_id == pending.pk
+                for wompi_transaction in transactions
+            )
+        ):
+            raise ValidationError(
+                "El intento pendiente requiere verificacion."
+            )
+        return pending
+
+    verified_decline = any(
+        payment.payment_status == "DECLINED"
+        and any(
+            wompi_transaction.payment_id == payment.pk
+            and wompi_transaction.status == "DECLINED"
+            for wompi_transaction in transactions
+        )
+        for payment in payments
+    )
+    if not verified_decline:
+        raise ValidationError(
+            "No existe un rechazo verificado que permita reintentar."
+        )
+
+    return Payment.objects.create(
+        reservation=reservation,
+        amount=reservation.deposit_required,
+        payment_type="DEPOSIT",
+        payment_status="PENDING",
+        provider="WOMPI",
+        transaction_reference=f"CL-{reservation.pk}-{uuid4().hex}",
+        currency="COP",
+    )

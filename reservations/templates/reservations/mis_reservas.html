@@ -1,15 +1,321 @@
-{% extends 'users/account_base.html' %}{% load i18n %}
+{% extends 'users/account_base.html' %}
+{% load i18n %}
+
 {% block title %}Mis reservas{% endblock %}
+
 {% block content %}
+
 {% include 'users/partials/account_messages.html' %}
-<header class="reservations-heading"><h1>Mis reservas</h1><p class="account-subtitle">Consulta el estado de tus reservas.</p><a class="button button-outline" href="{% url 'courts:establecimientos' %}">← Volver a establecimientos</a></header>
-{% if reservas %}<section class="personal-reservations" aria-label="Tus reservas">
-{% for reserva in reservas %}<article class="personal-reservation" aria-labelledby="reservation-{{ reserva.pk }}">
-<div class="reservation-media">{% if reserva.court.image %}<img class="reservation-image" src="{{ reserva.court.image.url }}" alt="{{ reserva.court.court_name }}" width="5280" height="5451" loading="lazy" decoding="async">{% endif %}{% include 'users/partials/court_placeholder.html' with image=reserva.court.image %}<span class="reservation-status status-{{ reserva.reservation_status|lower }}">{{ reserva.get_reservation_status_display }}</span></div>
-<div class="personal-reservation-content"><h2 id="reservation-{{ reserva.pk }}">{{ reserva.court.court_name }}</h2><p class="reservation-venue">{{ reserva.court.venue.venue_name }}</p>
-<dl class="reservation-facts"><div><dt>Fecha:</dt><dd>{{ reserva.reservation_date|date:'d/m/Y' }}</dd></div><div><dt>Horario:</dt><dd>{{ reserva.start_time|time:'H:i' }} – {{ reserva.end_time|time:'H:i' }}</dd></div><div><dt>Valor total:</dt><dd>{% language 'es-co' %}${{ reserva.total_amount|floatformat:'0g' }}{% endlanguage %}</dd></div></dl>
-{% if reserva.reservation_status == 'CONFIRMED' %}<form method="post" action="{% url 'reservations:cancelar_reserva' reserva.pk %}" onsubmit="return confirm('¿Estás seguro de que deseas cancelar esta reserva?');">{% csrf_token %}<button type="submit" class="cancel-reservation">Cancelar reserva</button></form>{% endif %}
-<p class="reservation-meta">{% if reserva.is_upcoming %}<span aria-hidden="true">★</span> Próxima{% else %}Historial{% endif %} · Reserva #{{ reserva.pk }}</p>
-</div></article>{% endfor %}</section>
-{% else %}<section class="catalog-empty"><h2>Aún no tienes reservas.</h2><p>Explora establecimientos y encuentra tu próxima cancha.</p><a class="button button-primary" href="{% url 'courts:establecimientos' %}">Explorar establecimientos</a></section>{% endif %}
+
+<header class="reservations-heading">
+    <h1>Mis reservas</h1>
+
+    <p class="account-subtitle">
+        Consulta el estado de tus reservas
+        y continúa los pagos disponibles.
+    </p>
+
+    <a class="button button-outline" href="{% url 'courts:establecimientos' %}">
+        ← Volver a establecimientos
+    </a>
+</header>
+
+{% if reservas %}
+
+<section class="personal-reservations" aria-label="Tus reservas">
+
+    {% for reserva in reservas %}
+
+    <article class="personal-reservation" aria-labelledby="reservation-{{ reserva.pk }}">
+
+        <div class="reservation-media">
+
+            {% if reserva.court.image %}
+            <img class="reservation-image" src="{{ reserva.court.image.url }}" alt="{{ reserva.court.court_name }}"
+                width="5280" height="5451" loading="lazy" decoding="async">
+            {% endif %}
+
+            {% include 'users/partials/court_placeholder.html' with image=reserva.court.image %}
+
+            <span class="reservation-status status-{{ reserva.reservation_status|lower }}">
+                {{ reserva.get_reservation_status_display }}
+            </span>
+
+        </div>
+
+        <div class="personal-reservation-content">
+
+            <h2 id="reservation-{{ reserva.pk }}">
+                {{ reserva.court.court_name }}
+            </h2>
+
+            <p class="reservation-venue">
+                {{ reserva.court.venue.venue_name }}
+            </p>
+
+            <dl class="reservation-facts">
+
+                <div>
+                    <dt>Fecha:</dt>
+                    <dd>
+                        {{ reserva.reservation_date|date:'d/m/Y' }}
+                    </dd>
+                </div>
+
+                <div>
+                    <dt>Horario:</dt>
+                    <dd>
+                        {{ reserva.start_time|time:'H:i' }}
+                        –
+                        {{ reserva.end_time|time:'H:i' }}
+                    </dd>
+                </div>
+
+                <div>
+                    <dt>Valor total:</dt>
+                    <dd>
+                        {% language 'es-co' %}
+                        ${{ reserva.total_amount|floatformat:'0g' }}
+                        {% endlanguage %}
+                    </dd>
+                </div>
+
+                {% if reserva.reservation_status == 'PENDING_PAYMENT' %}
+
+                <div>
+                    <dt>Abono requerido:</dt>
+                    <dd>
+                        {% language 'es-co' %}
+                        ${{ reserva.deposit_required|floatformat:'0g' }}
+                        {% endlanguage %}
+                    </dd>
+                </div>
+
+                {% endif %}
+
+            </dl>
+
+            <!-- Reservas pendientes de pago -->
+
+            {% if reserva.reservation_status == 'PENDING_PAYMENT' %}
+
+            <div class="reservation-payment-actions">
+
+                {% if reserva.payment_hold_expired %}
+
+                <p class="reservation-payment-warning">
+                    El plazo para pagar terminó.
+
+                    Si realizaste un pago, consulta
+                    el estado antes de intentar
+                    otra reserva.
+                </p>
+
+                {% else %}
+
+                <p class="reservation-payment-timer" role="status">
+                    <span>Tiempo restante para pagar:</span>
+                    <strong
+                        class="payment-countdown"
+                        data-seconds="{{ reserva.payment_seconds_remaining }}"
+                    >
+                        Calculando…
+                    </strong>
+                </p>
+
+                <p class="reservation-payment-info">
+                    Esta reserva todavía no está
+                    confirmada.
+
+                    Si acabas de realizar un pago,
+                    espera a que se verifique.
+                </p>
+
+                {% endif %}
+
+                {% if reserva.can_resume_payment %}
+
+                <a href="{% url 'reservations:pagar_reserva' reserva.pk %}" class="button button-primary">
+                    Continuar pago con Wompi
+                </a>
+
+                {% endif %}
+
+                {% if reserva.can_retry_payment %}
+
+                <form method="post" action="{% url 'reservations:reintentar_pago_wompi' reserva.pk %}">
+                    {% csrf_token %}
+                    <button type="submit" class="button button-primary">
+                        Intentar pagar nuevamente
+                    </button>
+                </form>
+
+                {% endif %}
+                <a href="{% url 'reservations:wompi_payment_return' reserva.pk %}" class="button button-outline">
+                    Consultar estado del pago
+                </a>
+
+            </div>
+
+            {% endif %}
+
+            <!-- Reservas confirmadas -->
+
+            {% if reserva.reservation_status == 'CONFIRMED' %}
+
+            <form method="post" action="{% url 'reservations:cancelar_reserva' reserva.pk %}"
+                onsubmit="return confirm('¿Estás seguro de que deseas cancelar esta reserva?');">
+
+                {% csrf_token %}
+
+                <button type="submit" class="cancel-reservation">Cancelar reserva</button>
+
+            </form>
+
+            {% endif %}
+
+            <!-- Información inferior -->
+
+            <p class="reservation-meta">
+
+                {% if reserva.is_upcoming %}
+                <span aria-hidden="true">★</span>
+                Próxima
+                {% else %}
+                Historial
+                {% endif %}
+
+                · Reserva #{{ reserva.pk }}
+
+            </p>
+
+        </div>
+
+    </article>
+
+    {% endfor %}
+
+</section>
+
+{% else %}
+
+<section class="catalog-empty">
+
+    <h2>Aún no tienes reservas.</h2>
+
+    <p>
+        Explora establecimientos y encuentra
+        tu próxima cancha.
+    </p>
+
+    <a class="button button-primary" href="{% url 'courts:establecimientos' %}">
+        Explorar establecimientos
+    </a>
+
+</section>
+
+{% endif %}
+
+<style>
+    .reservation-payment-actions {
+        display: grid;
+        gap: 12px;
+        margin: 18px 0;
+    }
+
+    .reservation-payment-actions form {
+        margin: 0;
+    }
+
+    .reservation-payment-actions .button {
+        display: block;
+        width: 100%;
+        text-align: center;
+        text-decoration: none;
+    }
+
+    .reservation-payment-info,
+    .reservation-payment-warning,
+    .reservation-payment-timer {
+        margin: 0;
+        padding: 14px 16px;
+        border-radius: 12px;
+        font-size: 13px;
+        line-height: 1.6;
+    }
+
+    .reservation-payment-info {
+        color: #dce7d6;
+        background: rgba(42, 64, 31, .3);
+        border: 1px solid rgba(115, 155, 85, .35);
+    }
+
+    .reservation-payment-warning {
+        color: #f8e7c4;
+        background: rgba(120, 82, 20, .18);
+        border: 1px solid rgba(200, 145, 50, .4);
+    }
+
+    .reservation-payment-timer {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+        color: #f8e7c4;
+        background: rgba(120, 82, 20, .18);
+        border: 1px solid rgba(200, 145, 50, .4);
+    }
+
+    .reservation-payment-timer strong {
+        color: #fff;
+        font-variant-numeric: tabular-nums;
+        white-space: nowrap;
+    }
+
+    @media (max-width: 540px) {
+        .reservation-payment-timer {
+            align-items: flex-start;
+            flex-direction: column;
+            gap: 5px;
+        }
+    }
+</style>
+
+<script>
+    (function () {
+        const counters = Array.from(
+            document.querySelectorAll(".payment-countdown")
+        );
+        if (!counters.length) return;
+
+        let reloadScheduled = false;
+
+        function updateCounter(counter) {
+            let seconds = Number.parseInt(counter.dataset.seconds, 10) || 0;
+
+            if (seconds <= 0) {
+                counter.textContent = "Tiempo expirado";
+                if (!reloadScheduled) {
+                    reloadScheduled = true;
+                    window.setTimeout(function () {
+                        window.location.reload();
+                    }, 1000);
+                }
+                return;
+            }
+
+            const minutes = Math.floor(seconds / 60);
+            const remainingSeconds = seconds % 60;
+            counter.textContent =
+                minutes + ":" + remainingSeconds.toString().padStart(2, "0");
+            counter.dataset.seconds = String(seconds - 1);
+        }
+
+        counters.forEach(updateCounter);
+        window.setInterval(function () {
+            counters.forEach(updateCounter);
+        }, 1000);
+    }());
+</script>
+
 {% endblock %}

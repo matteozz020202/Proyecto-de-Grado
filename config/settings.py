@@ -12,6 +12,7 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 
 from pathlib import Path
 import os
+from urllib.parse import urlparse
 from dotenv import load_dotenv
 import dj_database_url
 
@@ -58,6 +59,50 @@ CSRF_TRUSTED_ORIGINS = [
     ).split(",")
     if origin.strip()
 ]
+
+# Túnel HTTPS opcional para desarrollo local. No se acepta en producción
+# ni se amplía ALLOWED_HOSTS con comodines.
+LOCAL_TUNNEL_URL = os.getenv("LOCAL_TUNNEL_URL", "").strip().rstrip("/")
+WOMPI_PUBLIC_BASE_URL = ""
+
+if LOCAL_TUNNEL_URL:
+    tunnel = urlparse(LOCAL_TUNNEL_URL)
+    tunnel_host = (tunnel.hostname or "").lower()
+    allowed_tunnel_suffixes = (
+        ".ngrok-free.dev",
+        ".ngrok-free.app",
+        ".ngrok.app",
+        ".ngrok.io",
+    )
+
+    if not DEBUG:
+        raise ValueError(
+            "LOCAL_TUNNEL_URL solo puede utilizarse con DEBUG=True."
+        )
+
+    if (
+        tunnel.scheme != "https"
+        or not tunnel_host
+        or tunnel.username
+        or tunnel.password
+        or tunnel.port not in (None, 443)
+        or tunnel.path not in ("", "/")
+        or tunnel.query
+        or tunnel.fragment
+        or not tunnel_host.endswith(allowed_tunnel_suffixes)
+    ):
+        raise ValueError(
+            "LOCAL_TUNNEL_URL debe ser un origen HTTPS válido de ngrok."
+        )
+
+    if tunnel_host not in ALLOWED_HOSTS:
+        ALLOWED_HOSTS.append(tunnel_host)
+
+    if LOCAL_TUNNEL_URL not in CSRF_TRUSTED_ORIGINS:
+        CSRF_TRUSTED_ORIGINS.append(LOCAL_TUNNEL_URL)
+
+    WOMPI_PUBLIC_BASE_URL = LOCAL_TUNNEL_URL
+    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
 # Application definition
 
@@ -204,3 +249,8 @@ STORAGES={
         "BACKEND":"django.contrib.staticfiles.storage.StaticFilesStorage"
     },
 }
+
+WOMPI_CHECKOUT_ENABLED = (
+    os.getenv("WOMPI_CHECKOUT_ENABLED", "False").lower()
+    == "true"
+)

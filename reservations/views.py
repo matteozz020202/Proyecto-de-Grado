@@ -2,10 +2,11 @@ from datetime import date, datetime
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.core.exceptions import ValidationError
+from django.core.exceptions import ValidationError, ImproperlyConfigured
 from django.core.paginator import Paginator
 from django.conf import settings
 from django.http import JsonResponse
+from django.db import transaction
 from django.db.models import Q
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -20,8 +21,8 @@ from django.utils.dateparse import parse_date
 from courts.models import Court, Venue
 from courts.access import courts_for_user
 from users.decorators import admin_required
-
-from .models import Reservation
+from .wompi_checkout import build_wompi_checkout_data
+from .models import Reservation, Payment
 from .analytics import dashboard_data
 from .forms import DashboardFilterForm
 from .dashboard_scope import filtered_scope
@@ -37,6 +38,9 @@ from .services import (
     get_availability,
     process_simulated_payment,
     complete_reservation,
+    create_pending_reservation,
+    create_wompi_payment_attempt,
+    create_wompi_retry_attempt,
 )
 
 
@@ -54,7 +58,8 @@ def mis_reservas(request):
             "court__venue"
         )
         .prefetch_related(
-            "payments"
+            "payments",
+            "payments__wompi_transactions",
         )
         .order_by(
             "-reservation_date",
@@ -67,6 +72,87 @@ def mis_reservas(request):
         reservation.is_upcoming = (
             reservation.reservation_status in {"PENDING_PAYMENT", "CONFIRMED"}
             and (reservation.reservation_date, reservation.end_time) > (now.date(), now.time().replace(tzinfo=None))
+        )
+
+        now_payment = timezone.now()
+
+        resumable_wompi_payment = any(
+            payment.provider == "WOMPI"
+            and payment.payment_type == "DEPOSIT"
+            and payment.payment_status == "PENDING"
+            and not payment.requires_reconciliation
+            and not payment.provider_transaction_id
+            and not any(
+                transaction.status in {"PENDING", "APPROVED"}
+                for transaction in payment.wompi_transactions.all()
+            )
+            for payment in reservation.payments.all()
+        )
+
+        reservation.payment_hold_expired = (
+            reservation.reservation_status == "PENDING_PAYMENT"
+            and (
+                reservation.hold_expires_at is None
+                or reservation.hold_expires_at <= now_payment
+            )
+        )
+
+        reservation.can_resume_payment = (
+            getattr(
+                settings,
+                "WOMPI_CHECKOUT_ENABLED",
+                False,
+            ) is True
+            and reservation.reservation_status == "PENDING_PAYMENT"
+            and not reservation.payment_hold_expired
+            and resumable_wompi_payment
+        )
+
+
+        verified_decline = any(
+            payment.provider == "WOMPI"
+            and payment.payment_type == "DEPOSIT"
+            and payment.payment_status == "DECLINED"
+            and any(
+                wompi_transaction.status == "DECLINED"
+                for wompi_transaction in payment.wompi_transactions.all()
+            )
+            for payment in reservation.payments.all()
+        )
+        unsafe_retry = any(
+            payment.requires_reconciliation
+            or payment.payment_status == "APPROVED"
+            or any(
+                wompi_transaction.status in {"PENDING", "APPROVED"}
+                for wompi_transaction in payment.wompi_transactions.all()
+            )
+            for payment in reservation.payments.all()
+            if payment.provider == "WOMPI"
+        )
+        reservation.can_retry_payment = (
+            getattr(settings, "WOMPI_CHECKOUT_ENABLED", False) is True
+            and reservation.reservation_status == "PENDING_PAYMENT"
+            and not reservation.payment_hold_expired
+            and not resumable_wompi_payment
+            and verified_decline
+            and not unsafe_retry
+        )
+
+        reservation.payment_seconds_remaining = (
+            max(
+                0,
+                int(
+                    (
+                        reservation.hold_expires_at
+                        - now_payment
+                    ).total_seconds()
+                ),
+            )
+            if (
+                reservation.reservation_status == "PENDING_PAYMENT"
+                and reservation.hold_expires_at is not None
+            )
+            else 0
         )
 
     return render(
@@ -206,43 +292,76 @@ def resumen_reserva(
         end_time
     )
 
+
+
     # Crear reserva.
     if request.method == "POST":
+        wompi_enabled = getattr(
+            settings,
+            "WOMPI_CHECKOUT_ENABLED",
+            False,
+        ) is True
+
         try:
-            reservation = create_confirmed_reservation(
-                user=request.user,
-                court=court,
-                reservation_date=reservation_date,
-                start_time=start_time,
-                end_time=end_time
-            )
+            if wompi_enabled:
+                with transaction.atomic():
+                    reservation = create_pending_reservation(
+                        user=request.user,
+                        court=court,
+                        reservation_date=reservation_date,
+                        start_time=start_time,
+                        end_time=end_time,
+                    )
+
+                    create_wompi_payment_attempt(
+                        reservation
+                    )
+            else:
+                reservation = create_confirmed_reservation(
+                    user=request.user,
+                    court=court,
+                    reservation_date=reservation_date,
+                    start_time=start_time,
+                    end_time=end_time,
+                )
 
         except ValidationError as error:
             messages.error(
                 request,
-                error.messages[0]
+                error.messages[0],
             )
 
             url = reverse(
                 "courts:disponibilidad_cancha",
                 kwargs={
-                    "cancha_id": court.court_id
-                }
+                    "cancha_id": court.court_id,
+                },
             )
 
             return redirect(
-                f"{url}?fecha="
-                f"{reservation_date.isoformat()}"
+                f"{url}?fecha={reservation_date.isoformat()}"
+            )
+
+        if wompi_enabled:
+            messages.info(
+                request,
+                "Tu horario fue reservado temporalmente. "
+                "Debes completar el abono para confirmar.",
+            )
+
+            return redirect(
+                "reservations:pagar_reserva",
+                reserva_id=reservation.reservation_id,
             )
 
         messages.success(
             request,
-            "Tu reserva fue confirmada correctamente."
+            "Tu reserva fue confirmada correctamente.",
         )
 
         return redirect(
             "reservations:reserva_confirmada",
-            reserva_id=reservation.reservation_id
+            reserva_id=reservation.reservation_id,
         )
 
     return render(
@@ -254,8 +373,14 @@ def resumen_reserva(
             "hora_inicio": start_time,
             "hora_fin": end_time,
             "valores": values,
-        }
+            "wompi_enabled": getattr(
+                settings,
+                "WOMPI_CHECKOUT_ENABLED",
+                False,
+            ) is True,
+        },
     )
+
 
 
 @login_required(login_url="users:login")
@@ -266,6 +391,36 @@ def reserva_confirmada(request, reserva_id):
     )
     return render(request, "reservations/reserva_confirmada.html", {"reserva": reservation})
 
+
+
+
+@login_required(login_url="users:login")
+@require_POST
+def reintentar_pago_wompi(request, reserva_id):
+    reservation = get_object_or_404(
+        Reservation,
+        reservation_id=reserva_id,
+        user=request.user,
+    )
+
+    if not getattr(settings, "WOMPI_CHECKOUT_ENABLED", False):
+        messages.error(request, "Wompi no esta disponible.")
+        return redirect("reservations:mis_reservas")
+
+    try:
+        create_wompi_retry_attempt(reservation)
+    except ValidationError as error:
+        messages.error(request, error.messages[0])
+        return redirect("reservations:mis_reservas")
+
+    messages.success(
+        request,
+        "Puedes intentar el pago nuevamente durante el tiempo restante.",
+    )
+    return redirect(
+        "reservations:pagar_reserva",
+        reserva_id=reservation.pk,
+    )
 
 @login_required(login_url="users:login")
 def pagar_reserva(
@@ -324,6 +479,152 @@ def pagar_reserva(
         return redirect(
             "reservations:mis_reservas"
         )
+
+
+    # ---------------------------------------------
+    # Checkout Wompi Sandbox
+    # ---------------------------------------------
+    wompi_enabled = getattr(
+        settings,
+        "WOMPI_CHECKOUT_ENABLED",
+        False,
+    ) is True
+
+    if wompi_enabled:
+
+        # En este modo no se permite utilizar
+        # los formularios antiguos de simulacion.
+        if request.method != "GET":
+            messages.error(
+                request,
+                "La simulación de pagos no está disponible.",
+            )
+
+            return redirect(
+                "reservations:mis_reservas"
+            )
+
+        # La reserva debe tener un plazo vigente.
+        if (
+            reservation.hold_expires_at is None
+            or reservation.hold_expires_at <= timezone.now()
+        ):
+            messages.error(
+                request,
+                "El plazo para iniciar el abono ha terminado.",
+            )
+
+            return redirect(
+                "reservations:mis_reservas"
+            )
+
+        # Recuperar el intento que se creó junto
+        # con la reserva en resumen_reserva().
+        # No crear uno nuevo durante una solicitud GET.
+        payment = (
+            Payment.objects.filter(
+                reservation=reservation,
+                provider="WOMPI",
+                payment_type="DEPOSIT",
+                payment_status="PENDING",
+                requires_reconciliation=False,
+            )
+            .order_by("-pk")
+            .first()
+        )
+
+        if payment is None:
+            messages.error(
+                request,
+                "No existe un intento de pago disponible. "
+                "La reserva requiere revisión.",
+            )
+
+            return redirect(
+                "reservations:mis_reservas"
+            )
+
+        try:
+            checkout_data = build_wompi_checkout_data(
+                payment
+            )
+
+
+            public_base_url = getattr(
+                settings,
+                "WOMPI_PUBLIC_BASE_URL",
+                "",
+            )
+            return_path = reverse(
+                "reservations:wompi_payment_return",
+                kwargs={
+                    "reserva_id": reservation.pk,
+                },
+            )
+
+            checkout_data = {
+                "checkout_url": checkout_data["checkout_url"],
+                "public_key": checkout_data["public-key"],
+                "currency": checkout_data["currency"],
+                "amount_in_cents": checkout_data["amount-in-cents"],
+                "reference": checkout_data["reference"],
+                "signature_integrity": checkout_data["signature:integrity"],
+                "expiration_time": checkout_data["expiration-time"],
+                "redirect_url": (
+                    f"{public_base_url}{return_path}"
+                    if public_base_url
+                    else ""
+                ),
+            }
+
+
+
+        except ValidationError as error:
+            messages.error(
+                request,
+                error.messages[0],
+            )
+
+            return redirect(
+                "reservations:mis_reservas"
+            )
+
+        except ImproperlyConfigured:
+            messages.error(
+                request,
+                "El sistema de pagos no está configurado "
+                "correctamente. Inténtalo más tarde.",
+            )
+
+            return redirect(
+                "reservations:mis_reservas"
+            )
+
+        remaining_time = max(
+            0,
+            int(
+                (
+                    reservation.hold_expires_at
+                    - timezone.now()
+                ).total_seconds()
+            ),
+        )
+
+        return render(
+            request,
+            "reservations/pagar_reserva.html",
+            {
+                "reserva": reservation,
+                "tiempo_restante": remaining_time,
+                "wompi_enabled": True,
+                "checkout": checkout_data,
+            },
+        )
+
+    # ---------------------------------------------
+    # Flujo simulado anterior
+    # Solo cuando Wompi esta desactivado.
+    # ---------------------------------------------
 
     if request.method == "POST":
         result = request.POST.get(

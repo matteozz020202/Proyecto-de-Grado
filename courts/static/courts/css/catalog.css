@@ -5,6 +5,7 @@
     background-position: center top;
     background-size: cover;
     background-repeat: no-repeat;
+    background-attachment: fixed;
 }
 .catalog-shell { width: min(1480px, 100%); padding: 28px 32px 0; margin: auto; }
 .catalog-nav { margin-bottom: 40px; padding: 22px 30px; }

@@ -1,0 +1,17 @@
+{% extends 'reservations/booking_base.html' %}
+{% block title %}Estado del pago{% endblock %}
+{% block content %}
+<a class="availability-back" href="{% url 'reservations:mis_reservas' %}">← Volver a mis reservas</a>
+<section class="confirmation-card payment-result" aria-labelledby="payment-result-title">
+<header class="confirmation-header"><h1 id="payment-result-title">Estado de tu reserva</h1><p>Reserva #{{ reserva.pk }}</p></header>
+{% if verification_message %}<p class="payment-message payment-message-warning" role="status">{{ verification_message }}</p>{% endif %}
+{% if resultado == "CONFIRMED" %}<div class="payment-result-state payment-result-success"><h2>Reserva confirmada</h2><p>Cancha Lista verificó el pago y confirmó tu reserva.</p></div>
+{% elif resultado == "REVIEW" %}<div class="payment-result-state payment-result-warning"><h2>Pago en revisión</h2><p>Existe una operación financiera que requiere conciliación. No realices otro pago mientras se revisa.</p></div>
+{% elif resultado == "REJECTED" %}<div class="payment-result-state payment-result-error"><h2>Pago no aprobado</h2><p>Wompi informó un resultado rechazado, anulado o con error. Tu reserva no fue confirmada.</p></div>
+{% elif resultado == "PENDING" %}<div class="payment-result-state payment-result-warning"><h2>Confirmación pendiente</h2><p>Aún no existe una aprobación verificada. Si ya pagaste, no repitas la operación mientras llega la notificación.</p></div>
+{% elif resultado == "EXPIRED" %}<div class="payment-result-state payment-result-error"><h2>Reserva expirada</h2><p>El plazo terminó. Si realizaste un pago, su situación debe conciliarse antes de crear otra reserva para el mismo horario.</p></div>
+{% else %}<div class="payment-result-state"><h2>Reserva no disponible para pago</h2><p>Consulta tus reservas para revisar su estado actual.</p></div>{% endif %}
+<dl class="checkout-facts confirmation-facts"><div><dt>Establecimiento</dt><dd>{{ reserva.court.venue.venue_name }}</dd></div><div><dt>Cancha</dt><dd>{{ reserva.court.court_name }}</dd></div><div><dt>Fecha</dt><dd>{{ reserva.reservation_date|date:"d/m/Y" }}</dd></div><div><dt>Horario</dt><dd>{{ reserva.start_time|time:"H:i" }} – {{ reserva.end_time|time:"H:i" }}</dd></div></dl>
+<div class="checkout-actions confirmation-actions"><a href="{% url 'reservations:wompi_payment_return' reserva.pk %}{% if transaction_id %}?id={{ transaction_id|urlencode }}{% endif %}" class="button button-outline">{% if transaction_id %}Volver a consultar Wompi{% else %}Actualizar estado{% endif %}</a><a href="{% url 'reservations:mis_reservas' %}" class="button button-primary">Ver mis reservas</a></div>
+</section>
+{% endblock %}

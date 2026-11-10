@@ -16,3 +16,8 @@ DATABASES = {
     }
 }
 PASSWORD_HASHERS = ["django.contrib.auth.hashers.MD5PasswordHasher"]
+
+# Ninguna variable del .env local debe activar cobros en la suite general.
+# Las pruebas de Wompi lo habilitan de forma explícita con override_settings.
+WOMPI_CHECKOUT_ENABLED = False
+WOMPI_PUBLIC_BASE_URL = ""

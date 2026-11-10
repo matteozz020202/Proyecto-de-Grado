@@ -1,6 +1,7 @@
 from django.urls import path
-
+from .wompi_webhook import wompi_webhook
 from . import views
+from .wompi_return import wompi_payment_return
 
 app_name = "reservations"
 
@@ -21,6 +22,11 @@ urlpatterns = [
         "pago/<int:reserva_id>/",
         views.pagar_reserva,
         name="pagar_reserva"
+    ),
+    path(
+        "pago/<int:reserva_id>/reintentar/",
+        views.reintentar_pago_wompi,
+        name="reintentar_pago_wompi",
     ),
     path(
     "cancelar/<int:reserva_id>/",
@@ -47,5 +53,15 @@ urlpatterns = [
     "admin/reservas/<int:reserva_id>/",
     views.admin_detalle_reserva,
     name="admin_detalle_reserva"
+    ),
+    path(
+    "wompi/webhook/",
+    wompi_webhook,
+    name="wompi_webhook",
+    ),
+    path(
+    "wompi/resultado/<int:reserva_id>/",
+    wompi_payment_return,
+    name="wompi_payment_return",
     ),
 ]

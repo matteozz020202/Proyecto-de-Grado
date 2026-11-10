@@ -1,16 +1,227 @@
-{% extends 'reservations/booking_base.html' %}{% load i18n %}
+
+{% extends 'reservations/booking_base.html' %}
+{% load i18n %}
+
 {% block title %}Revisa tu reserva{% endblock %}
+
 {% block content %}
-<a class="availability-back" href="{% url 'courts:disponibilidad_cancha' cancha.pk %}?fecha={{ fecha|date:'Y-m-d' }}">← Volver a la disponibilidad</a>
+
+<a
+    class="availability-back"
+    href="{% url 'courts:disponibilidad_cancha' cancha.pk %}?fecha={{ fecha|date:'Y-m-d' }}"
+>
+    ← Volver a la disponibilidad
+</a>
+
 <div class="availability-layout checkout-layout">
-<section class="court-overview" aria-labelledby="court-title">
-{% if cancha.image %}<img class="availability-image" src="{{ cancha.image.url }}" alt="{{ cancha.court_name }}" width="5280" height="5451">{% endif %}
-<div class="court-placeholder" {% if cancha.image %}hidden{% endif %}><svg viewBox="0 0 64 44" aria-hidden="true"><rect x="2" y="2" width="60" height="40" rx="3"/><path d="M32 2v40M2 14h10v16H2m60-16H52v16h10"/><circle cx="32" cy="22" r="8"/></svg><span>Imagen no disponible</span></div>
-<h2 id="court-title">{{ cancha.court_name }}</h2><p class="court-venue">{{ cancha.venue.venue_name }}</p><p class="court-location">{{ cancha.venue.city }}{% if cancha.venue.address %} · {{ cancha.venue.address }}{% endif %}</p><div class="checkout-hourly"><strong>{% language 'es-co' %}${{ cancha.price_per_hour|floatformat:'0g' }}{% endlanguage %}</strong><span>Por hora · COP</span></div>
-</section>
-<section class="availability-panel checkout-review" aria-labelledby="review-title"><h1 id="review-title">Revisa tu reserva</h1><p class="checkout-subtitle">Confirma los datos antes de finalizar.</p>
-<dl class="checkout-facts"><div><dt>Establecimiento</dt><dd>{{ cancha.venue.venue_name }}</dd></div><div><dt>Cancha</dt><dd>{{ cancha.court_name }}</dd></div><div><dt>Fecha</dt><dd>{% language 'es-co' %}{{ fecha|date:'l, j \d\e F \d\e Y'|capfirst }}{% endlanguage %}</dd></div><div><dt>Horario</dt><dd>{{ hora_inicio|time:'H:i' }} – {{ hora_fin|time:'H:i' }}<small>{% language 'es-co' %}{{ valores.duration_hours|floatformat:'-2' }}{% endlanguage %} hora{{ valores.duration_hours|pluralize }}</small></dd></div></dl>
-<div class="checkout-total"><span>Valor total</span><strong>{% language 'es-co' %}${{ valores.total_amount|floatformat:'0g' }}{% endlanguage %}</strong><small>COP</small></div>
-<p class="checkout-note">Tu reserva se confirmará directamente al continuar. El módulo de pagos y abonos no está disponible en este MVP. Estamos trabajando en su implementación para próximas versiones.</p>
-<form method="post" class="checkout-actions">{% csrf_token %}<input type="hidden" name="fecha" value="{{ fecha|date:'Y-m-d' }}"><input type="hidden" name="inicio" value="{{ hora_inicio|time:'H:i' }}"><input type="hidden" name="fin" value="{{ hora_fin|time:'H:i' }}"><button type="submit" class="button button-primary">Confirmar y reservar <span aria-hidden="true">→</span></button><a class="button button-outline" href="{% url 'courts:disponibilidad_cancha' cancha.pk %}?fecha={{ fecha|date:'Y-m-d' }}">Elegir otro horario</a></form>
-</section></div>{% endblock %}
+
+    <section class="court-overview" aria-labelledby="court-title">
+
+        {% if cancha.image %}
+            <img
+                class="availability-image"
+                src="{{ cancha.image.url }}"
+                alt="{{ cancha.court_name }}"
+                width="5280"
+                height="5451"
+            >
+        {% endif %}
+
+        <div
+            class="court-placeholder"
+            {% if cancha.image %}hidden{% endif %}
+        >
+            <svg viewBox="0 0 64 44" aria-hidden="true">
+                <rect x="2" y="2" width="60" height="40" rx="3"/>
+                <path d="M32 2v40M2 14h10v16H2m60-16H52v16h10"/>
+                <circle cx="32" cy="22" r="8"/>
+            </svg>
+            <span>Imagen no disponible</span>
+        </div>
+
+        <h2 id="court-title">{{ cancha.court_name }}</h2>
+
+        <p class="court-venue">
+            {{ cancha.venue.venue_name }}
+        </p>
+
+        <p class="court-location">
+            {{ cancha.venue.city }}
+            {% if cancha.venue.address %}
+                · {{ cancha.venue.address }}
+            {% endif %}
+        </p>
+
+        <div class="checkout-hourly">
+            <strong>
+                {% language 'es-co' %}
+                    ${{ cancha.price_per_hour|floatformat:'0g' }}
+                {% endlanguage %}
+            </strong>
+            <span>Por hora · COP</span>
+        </div>
+
+    </section>
+
+    <section
+        class="availability-panel checkout-review"
+        aria-labelledby="review-title"
+    >
+
+        <h1 id="review-title">Revisa tu reserva</h1>
+
+        <p class="checkout-subtitle">
+            Verifica los datos de tu reserva y los valores
+            correspondientes al abono.
+        </p>
+
+        <dl class="checkout-facts">
+
+            <div>
+                <dt>Establecimiento</dt>
+                <dd>{{ cancha.venue.venue_name }}</dd>
+            </div>
+
+            <div>
+                <dt>Cancha</dt>
+                <dd>{{ cancha.court_name }}</dd>
+            </div>
+
+            <div>
+                <dt>Fecha</dt>
+                <dd>
+                    {% language 'es-co' %}
+                        {{ fecha|date:'l, j \d\e F \d\e Y'|capfirst }}
+                    {% endlanguage %}
+                </dd>
+            </div>
+
+            <div>
+                <dt>Horario</dt>
+                <dd>
+                    {{ hora_inicio|time:'H:i' }}
+                    –
+                    {{ hora_fin|time:'H:i' }}
+
+                    <small>
+                        {% language 'es-co' %}
+                            {{ valores.duration_hours|floatformat:'-2' }}
+                        {% endlanguage %}
+                        hora{{ valores.duration_hours|pluralize }}
+                    </small>
+                </dd>
+            </div>
+
+        </dl>
+
+        <div class="checkout-pricing">
+        <div class="checkout-total">
+            <span>Valor total</span>
+            <strong>
+                {% language 'es-co' %}
+                    ${{ valores.total_amount|floatformat:'0g' }}
+                {% endlanguage %}
+            </strong>
+            <small>COP</small>
+        </div>
+        <dl class="checkout-facts checkout-money-grid">
+
+            <div>
+                <dt>
+                    Abono requerido
+                    ({{ valores.deposit_percentage|floatformat:'-2' }}%)
+                </dt>
+                <dd>
+                    <strong>
+                        {% language 'es-co' %}
+                            ${{ valores.deposit_required|floatformat:'0g' }}
+                        {% endlanguage %}
+                    </strong>
+                </dd>
+            </div>
+
+            <div>
+                <dt>Saldo pendiente</dt>
+                <dd>
+                    <strong>
+                        {% language 'es-co' %}
+                            ${{ valores.remaining_amount|floatformat:'0g' }}
+                        {% endlanguage %}
+                    </strong>
+                </dd>
+            </div>
+
+        </dl>
+        </div>
+
+        <p class="checkout-note">
+            El establecimiento ha configurado un abono
+            del {{ valores.deposit_percentage|floatformat:'-2' }}%
+            sobre el valor total de la reserva.
+            El saldo restante se pagará posteriormente
+            en el establecimiento.
+        </p>
+
+        {% if wompi_enabled %}
+            <div class="checkout-note alert alert-info mt-3">
+                <strong>Pago con Wompi Sandbox:</strong>
+                Al continuar, tu horario se reservará
+                temporalmente durante 15 minutos.
+
+                Deberás pagar el abono en el entorno
+                de pruebas de Wompi para confirmar
+                tu reserva.
+            </div>
+        {% else %}
+            <div class="alert alert-info mt-3">
+                La pasarela Wompi todavía no está
+                activada en este entorno.
+
+                La reserva se confirmará mediante
+                el flujo actual, sin un cobro electrónico.
+            </div>
+        {% endif %}
+
+
+        <form method="post" class="checkout-actions">
+            {% csrf_token %}
+
+            <input
+                type="hidden"
+                name="fecha"
+                value="{{ fecha|date:'Y-m-d' }}"
+            >
+
+            <input
+                type="hidden"
+                name="inicio"
+                value="{{ hora_inicio|time:'H:i' }}"
+            >
+
+            <input
+                type="hidden"
+                name="fin"
+                value="{{ hora_fin|time:'H:i' }}"
+            >
+
+            <button
+                type="submit"
+                class="button button-primary"
+            >
+                Confirmar y reservar
+                <span aria-hidden="true">→</span>
+            </button>
+
+            <a
+                class="button button-outline"
+                href="{% url 'courts:disponibilidad_cancha' cancha.pk %}?fecha={{ fecha|date:'Y-m-d' }}"
+            >
+                Elegir otro horario
+            </a>
+        </form>
+
+    </section>
+
+</div>
+
+{% endblock %}

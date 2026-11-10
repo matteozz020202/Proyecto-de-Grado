@@ -1,6 +1,6 @@
 from datetime import time, timedelta
 from django.contrib.auth import get_user_model
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 from courts.models import Court, CourtSchedule, Venue
@@ -8,6 +8,7 @@ from .models import Payment
 from .services import create_pending_reservation
 
 
+@override_settings(WOMPI_CHECKOUT_ENABLED=False)
 class SimulatedPaymentViewTests(TestCase):
     def setUp(self):
         self.user = get_user_model().objects.create_user(username="payer")

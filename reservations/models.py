@@ -213,8 +213,12 @@ class Payment(models.Model):
     PAYMENT_STATUSES = [
         ("PENDING", "Pendiente"),
         ("APPROVED", "Aprobado"),
-        ("REJECTED", "Rechazado"),
+        ("REJECTED", "Rechazado (legado)"),
+        ("DECLINED", "Rechazado por Wompi"),
+        ("VOIDED", "Anulado"),
+        ("ERROR", "Error de procesamiento"),
     ]
+
 
     PAYMENT_TYPES = [
         ("DEPOSIT", "Abono"),
@@ -266,6 +270,49 @@ class Payment(models.Model):
         unique=True
     )
 
+# Identificador asignado por Wompi a la transacción.
+    # Puede ser NULL mientras la transacción no exista
+    # o no haya sido identificada por el proveedor.
+    provider_transaction_id = models.CharField(
+        max_length=150,
+        unique=True,
+        null=True,
+        blank=True,
+    )
+
+    # Moneda utilizada para el pago.
+    currency = models.CharField(
+        max_length=3,
+        default="COP",
+    )
+
+    # Método utilizado: PSE, CARD, etc.
+    # Se completará con información verificada
+    # del proveedor.
+    payment_method = models.CharField(
+        max_length=30,
+        blank=True,
+        default="",
+    )
+
+    # Última actualización del registro.
+    updated_at = models.DateTimeField(
+        auto_now=True,
+    )
+
+    # Indica que existe una situación financiera
+    # que requiere revisión o conciliación.
+    requires_reconciliation = models.BooleanField(
+        default=False,
+    )
+
+    # Motivo de la excepción financiera.
+    reconciliation_reason = models.CharField(
+        max_length=50,
+        blank=True,
+        default="",
+    )
+
     # 8. created_at
     created_at = models.DateTimeField(
         auto_now_add=True
@@ -288,4 +335,76 @@ class Payment(models.Model):
             f"Pago {self.transaction_reference} - "
             f"{self.reservation_id} - "
             f"{self.payment_status}"
+        )
+
+
+class WompiTransaction(models.Model):
+    """
+    Transaccion individual generada por Wompi.
+
+    Un Payment puede tener varias transacciones
+    cuando el cliente reintenta el pago.
+    """
+
+    TRANSACTION_STATUSES = [
+        ("PENDING", "Pendiente"),
+        ("APPROVED", "Aprobada"),
+        ("DECLINED", "Rechazada"),
+        ("VOIDED", "Anulada"),
+        ("ERROR", "Error"),
+    ]
+
+    payment = models.ForeignKey(
+        Payment,
+        on_delete=models.PROTECT,
+        related_name="wompi_transactions",
+    )
+
+    provider_transaction_id = models.CharField(
+        max_length=150,
+        unique=True,
+    )
+
+    status = models.CharField(
+        max_length=20,
+        choices=TRANSACTION_STATUSES,
+        default="PENDING",
+    )
+
+    amount_in_cents = models.PositiveBigIntegerField()
+
+    currency = models.CharField(
+        max_length=3,
+        default="COP",
+    )
+
+    payment_method = models.CharField(
+        max_length=30,
+        blank=True,
+        default="",
+    )
+
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+    )
+
+    updated_at = models.DateTimeField(
+        auto_now=True,
+    )
+
+    approved_at = models.DateTimeField(
+        null=True,
+        blank=True,
+    )
+
+    class Meta:
+        db_table = "wompi_transactions"
+        verbose_name = "Transacción Wompi"
+        verbose_name_plural = "Transacciones Wompi"
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return (
+            f"Wompi {self.provider_transaction_id} "
+            f"- {self.status}"
         )

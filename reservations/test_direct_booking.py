@@ -1,6 +1,6 @@
 from datetime import time,timedelta
 from django.contrib.auth import get_user_model
-from django.test import TestCase,Client
+from django.test import TestCase,Client,override_settings
 from django.urls import reverse
 from django.utils import timezone
 from courts.models import Court,CourtSchedule,Venue
@@ -8,6 +8,7 @@ from .models import Reservation,Payment
 from .services import create_pending_reservation,expire_pending_reservations
 
 
+@override_settings(WOMPI_CHECKOUT_ENABLED=False)
 class DirectBookingTests(TestCase):
     def setUp(self):
         U=get_user_model()
@@ -26,7 +27,11 @@ class DirectBookingTests(TestCase):
         self.assertContains(response,'Revisa tu reserva')
         self.assertContains(response,'Confirmar y reservar')
         self.assertContains(response,'$130.000')
-        self.assertNotContains(response,'Saldo pendiente')
+        self.assertContains(response, 'Abono requerido')
+        self.assertContains(response, '30%')
+        self.assertContains(response, '$39.000')
+        self.assertContains(response, 'Saldo pendiente')
+        self.assertContains(response, '$91.000')
         self.assertNotContains(response,'15 minutos')
         self.assertFalse(Reservation.objects.exists())
 
