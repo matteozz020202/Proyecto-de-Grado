@@ -273,6 +273,10 @@ class WompiCheckoutViewTests(TestCase):
             'name="redirect-url"',
         )
 
+    @override_settings(
+        WOMPI_PUBLIC_BASE_URL="",
+        LOCAL_TUNNEL_URL="",
+    )
     def test_checkout_omits_redirect_without_public_https_origin(self):
         response = self.client.get(self.url)
 

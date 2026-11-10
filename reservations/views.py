@@ -62,8 +62,8 @@ def mis_reservas(request):
             "payments__wompi_transactions",
         )
         .order_by(
-            "-reservation_date",
-            "-start_time"
+            "-created_at",
+            "-pk",
         )
     )
 
