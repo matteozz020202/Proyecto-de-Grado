@@ -66,6 +66,38 @@ class DirectBookingTests(TestCase):
         self.assertIn('disponibilidad',response.url)
         self.assertEqual(Reservation.objects.count(),1)
 
+    def test_my_reservations_are_ordered_by_newest_creation(self):
+        older = Reservation.objects.create(
+            user=self.user,
+            court=self.court,
+            reservation_date=self.day + timedelta(days=1),
+            start_time=time(18),
+            end_time=time(19),
+            total_amount=130000,
+            deposit_required=0,
+            remaining_amount=130000,
+            reservation_status='CONFIRMED',
+        )
+        newer = Reservation.objects.create(
+            user=self.user,
+            court=self.court,
+            reservation_date=self.day,
+            start_time=time(19),
+            end_time=time(20),
+            total_amount=130000,
+            deposit_required=0,
+            remaining_amount=130000,
+            reservation_status='CONFIRMED',
+        )
+
+        response = self.client.get(reverse('reservations:mis_reservas'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            [reservation.pk for reservation in response.context['reservas']],
+            [newer.pk, older.pk],
+        )
+
     def test_confirmation_is_private_and_only_for_confirmed_reservation(self):
         self.client.post(self.url,self.data)
         reservation=Reservation.objects.get()
