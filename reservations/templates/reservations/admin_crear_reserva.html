@@ -13,8 +13,7 @@
         </header>
 
         {% for message in messages %}
-        <p class="alert {% if message.tags == 'error' %}alert-danger{% else %}alert-success{% endif %}" role="alert">{{
-            message }}</p>
+        <p class="alert {% if message.tags == 'error' %}alert-danger{% else %}alert-success{% endif %}" role="alert">{{ message }}</p>
         {% endfor %}
 
         <div class="alert alert-info manual-notice">
@@ -144,7 +143,7 @@
                         <div class="col-12 col-md-6">
                             <label for="hora_fin" class="form-label">Hora de finalización</label>
                             <input type="time" id="hora_fin" name="hora_fin" class="form-control"
-                                value="{{ hora_fin_seleccionada }}" required>
+                                value="{{ hora_fin_seleccionada }}" readonly required>
                         </div>
 
                     </div>

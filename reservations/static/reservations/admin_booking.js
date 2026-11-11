@@ -33,6 +33,31 @@
     document.getElementById("preview-time").textContent=start.value&&end.value?`${start.value} – ${end.value}`:"—";
     }
 
+    function updateEndTime(){
+    start.setCustomValidity("");
+    if(!start.value){
+    end.value="";
+    preview();
+    return;
+    }
+
+    const [hours,minutes]=start.value.split(":").map(Number);
+    const endMinutes=(hours*60)+minutes+60;
+
+    if(endMinutes>=24*60){
+    end.value="";
+    start.setCustomValidity("La reserva debe finalizar el mismo dia.");
+    start.reportValidity();
+    preview();
+    return;
+    }
+
+    const endHours=String(Math.floor(endMinutes/60)).padStart(2,"0");
+    const endMinutePart=String(endMinutes%60).padStart(2,"0");
+    end.value=`${endHours}:${endMinutePart}`;
+    preview();
+    }
+
     function close(){
     results.hidden=true;
     input.setAttribute("aria-expanded","false");
@@ -179,8 +204,10 @@
     }
     });
 
-    [court,date,start,end].forEach(field=>field.addEventListener("input",preview));
+    [court,date].forEach(field=>field.addEventListener("input",preview));
+    start.addEventListener("input",updateEndTime);
 
     updateClientFields();
+    if(start.value)updateEndTime();
     preview();
     })();

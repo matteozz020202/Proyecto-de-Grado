@@ -630,6 +630,22 @@ class AdminManualReservationTests(TestCase):
         self.assertEqual(response.status_code,200)
         self.assertEqual(Reservation.objects.count(),1)
 
+    def test_manual_reservation_must_last_exactly_one_hour(self):
+        response=self.client.post(self.url,self.data(hora_fin="12:00"))
+        self.assertEqual(response.status_code,200)
+        self.assertContains(response,"debe durar exactamente una hora")
+        self.assertFalse(Reservation.objects.exists())
+
+    def test_schedule_error_renders_message_instead_of_template_expression(self):
+        response=self.client.post(
+            self.url,
+            self.data(hora_inicio="22:00",hora_fin="23:00"),
+        )
+        self.assertEqual(response.status_code,200)
+        self.assertContains(response,"fuera del horario operativo")
+        self.assertNotContains(response,"{{ message }}")
+        self.assertFalse(Reservation.objects.exists())
+
     def test_admin_cannot_create_reservation_on_foreign_court(self):
         other=User.objects.create_user(username="other_admin",is_staff=True)
         venue=Venue.objects.create(venue_name="Complejo Ajeno",address="Calle 2",manager=other,deposit_percentage=Decimal("30.00"),is_active=True)

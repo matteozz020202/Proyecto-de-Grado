@@ -491,6 +491,14 @@ def create_confirmed_reservation(user,court,reservation_date,start_time,end_time
 
 
 def create_admin_reservation(user,court,reservation_date,start_time,end_time,guest_name="",guest_phone=""):
+    start_datetime = datetime.combine(reservation_date, start_time)
+    end_datetime = datetime.combine(reservation_date, end_time)
+
+    if end_datetime - start_datetime != timedelta(hours=1):
+        raise ValidationError(
+            "La reserva manual debe durar exactamente una hora."
+        )
+
     return create_confirmed_reservation(
         user,court,reservation_date,start_time,end_time,
         guest_name=guest_name,guest_phone=guest_phone,
