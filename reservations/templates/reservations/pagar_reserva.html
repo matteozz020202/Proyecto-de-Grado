@@ -1,31 +1,25 @@
 {% extends 'reservations/booking_base.html' %}
-{% load i18n %}
+{% load i18n static %}
 {% block title %}Realizar abono{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% static 'reservations/payment.css' %}?v=20261116-6">{% endblock %}
 {% block content %}
-<a class="availability-back" href="{% url 'reservations:mis_reservas' %}">← Volver a mis reservas</a>
+<div class="payment-page">
 {% if messages %}<div class="payment-messages" aria-live="polite">{% for message in messages %}<p class="payment-message payment-message-{{ message.tags|default:'info' }}">{{ message }}</p>{% endfor %}</div>{% endif %}
-<div class="availability-layout checkout-layout payment-layout">
-<section class="court-overview" aria-labelledby="payment-court-title">
-{% if reserva.court.image %}<img class="availability-image" src="{{ reserva.court.image.url }}" alt="{{ reserva.court.court_name }}" width="5280" height="5451">{% endif %}
-<div class="court-placeholder" {% if reserva.court.image %}hidden{% endif %}><svg viewBox="0 0 64 44" aria-hidden="true"><rect x="2" y="2" width="60" height="40" rx="3"/><path d="M32 2v40M2 14h10v16H2m60-16H52v16h10"/><circle cx="32" cy="22" r="8"/></svg><span>Imagen no disponible</span></div>
-<h2 id="payment-court-title">{{ reserva.court.court_name }}</h2><p class="court-venue">{{ reserva.court.venue.venue_name }}</p><p class="court-location">Reserva #{{ reserva.pk }}</p>
-<dl class="payment-schedule"><div><dt>Fecha</dt><dd>{{ reserva.reservation_date|date:"d/m/Y" }}</dd></div><div><dt>Horario</dt><dd>{{ reserva.start_time|time:"H:i" }} – {{ reserva.end_time|time:"H:i" }}</dd></div></dl>
-</section>
-<section class="availability-panel checkout-review" aria-labelledby="payment-title">
-<h1 id="payment-title">Realizar abono</h1><p class="checkout-subtitle">Revisa el valor calculado por Cancha Lista antes de continuar.</p>
-<div class="checkout-pricing"><div class="checkout-total"><span>Abono requerido</span><strong>{% language 'es-co' %}&#36;{{ reserva.deposit_required|floatformat:'0g' }}{% endlanguage %}</strong><small>COP · valor calculado por el servidor</small></div>
-<dl class="checkout-facts checkout-money-grid"><div><dt>Valor total</dt><dd>{% language 'es-co' %}&#36;{{ reserva.total_amount|floatformat:'0g' }}{% endlanguage %}</dd></div><div><dt>Saldo restante</dt><dd>{% language 'es-co' %}&#36;{{ reserva.remaining_amount|floatformat:'0g' }}{% endlanguage %}</dd></div></dl></div>
-<div class="payment-timer" role="status" aria-live="polite"><span>Tiempo disponible para iniciar el pago</span><strong id="contador" data-segundos="{{ tiempo_restante|default:0 }}">Calculando…</strong></div>
+<section class="payment-card" aria-labelledby="payment-title">
+<header class="payment-heading"><svg class="payment-heading-icon" viewBox="0 0 64 64" aria-hidden="true"><path d="M15 27h28a5 5 0 0 1 5 5v17a5 5 0 0 1-5 5H15a5 5 0 0 1-5-5V32a5 5 0 0 1 5-5Z"/><path d="M10 36h38M20 45h9M37 7a13 13 0 1 1 0 26 13 13 0 0 1 0-26Z"/><path d="M37 14v7l5 3M4 39l-2 10 10-3"/></svg><h1 id="payment-title">Realizar abono</h1></header>
+<div class="payment-overview">
+<div class="payment-amount" aria-label="Resumen del pago"><span class="payment-label">Abono requerido</span><strong>{% language 'es-co' %}&#36;{{ reserva.deposit_required|floatformat:'0g' }}{% endlanguage %}</strong><small>COP</small><dl class="payment-money-grid"><div><dt>Valor total:</dt><dd>{% language 'es-co' %}&#36;{{ reserva.total_amount|floatformat:'0g' }}{% endlanguage %}</dd></div><div><dt>Saldo restante:</dt><dd>{% language 'es-co' %}&#36;{{ reserva.remaining_amount|floatformat:'0g' }}{% endlanguage %}</dd></div></dl></div>
+<div class="payment-reservation" aria-labelledby="payment-court-title"><div class="payment-court-media">{% if reserva.court.image %}<img src="{{ reserva.court.image.url }}" alt="{{ reserva.court.court_name }}" width="640" height="480">{% else %}<div class="payment-court-placeholder"><svg viewBox="0 0 64 44" aria-hidden="true"><rect x="2" y="2" width="60" height="40" rx="3"/><path d="M32 2v40M2 14h10v16H2m60-16H52v16h10"/><circle cx="32" cy="22" r="8"/></svg><span>Imagen no disponible</span></div>{% endif %}</div><div class="payment-court-details"><h2 id="payment-court-title">{{ reserva.court.court_name }}</h2><p class="payment-venue">{{ reserva.court.venue.venue_name }}</p><p>Reserva #{{ reserva.pk }}</p><p>Fecha: {{ reserva.reservation_date|date:"d/m/Y" }}</p><p>Horario: {{ reserva.start_time|time:"H:i" }} – {{ reserva.end_time|time:"H:i" }}</p></div></div>
+</div>
+<div class="payment-card-footer"><div class="payment-timer" role="status" aria-live="polite"><span>Tiempo disponible para iniciar el pago</span><strong id="contador" data-segundos="{{ tiempo_restante|default:0 }}">Calculando…</strong></div>
 {% if wompi_enabled %}
-<div class="checkout-note"><strong>Wompi Sandbox.</strong> Completarás un pago de prueba. La reserva solo se confirmará después de verificar la transacción con Wompi.</div>
-<form action="{{ checkout.checkout_url }}" method="get" id="form-wompi" class="checkout-actions">
-<input type="hidden" name="public-key" value="{{ checkout.public_key }}"><input type="hidden" name="currency" value="{{ checkout.currency }}"><input type="hidden" name="amount-in-cents" value="{{ checkout.amount_in_cents }}"><input type="hidden" name="reference" value="{{ checkout.reference }}"><input type="hidden" name="signature:integrity" value="{{ checkout.signature_integrity }}"><input type="hidden" name="expiration-time" value="{{ checkout.expiration_time }}">{% if checkout.redirect_url %}<input type="hidden" name="redirect-url" value="{{ checkout.redirect_url }}">{% endif %}
-<button type="submit" id="boton-wompi" class="button button-primary">Pagar abono con Wompi Sandbox</button><a href="{% url 'reservations:mis_reservas' %}" class="button button-outline">Volver a mis reservas</a></form>
+<p class="payment-provider-note"><strong>Wompi Sandbox.</strong> Completarás un pago de prueba. La reserva solo se confirmará después de verificar la transacción con Wompi.</p>
+<form action="{{ checkout.checkout_url }}" method="get" id="form-wompi" class="payment-actions"><input type="hidden" name="public-key" value="{{ checkout.public_key }}"><input type="hidden" name="currency" value="{{ checkout.currency }}"><input type="hidden" name="amount-in-cents" value="{{ checkout.amount_in_cents }}"><input type="hidden" name="reference" value="{{ checkout.reference }}"><input type="hidden" name="signature:integrity" value="{{ checkout.signature_integrity }}"><input type="hidden" name="expiration-time" value="{{ checkout.expiration_time }}">{% if checkout.redirect_url %}<input type="hidden" name="redirect-url" value="{{ checkout.redirect_url }}">{% endif %}<button type="submit" id="boton-wompi" class="button payment-primary">Pagar abono con Wompi Sandbox</button><a href="{% url 'reservations:mis_reservas' %}" class="button payment-secondary">Volver a mis reservas</a></form>
 <p class="payment-caution">Si ya iniciaste un pago, no lo repitas mientras su resultado se encuentra pendiente de verificación.</p>
 {% else %}
-<div class="checkout-note">El modo de pagos simulados está activo en este entorno.</div><div class="confirmation-actions checkout-actions"><form method="post">{% csrf_token %}<input type="hidden" name="resultado" value="APPROVED"><button type="submit" class="button button-primary">Simular pago aprobado</button></form><form method="post">{% csrf_token %}<input type="hidden" name="resultado" value="REJECTED"><button type="submit" class="button button-outline">Simular pago rechazado</button></form></div>
+<p class="payment-provider-note">El modo de pagos simulados está activo en este entorno.</p><div class="payment-actions payment-simulation-actions"><form method="post">{% csrf_token %}<input type="hidden" name="resultado" value="APPROVED"><button type="submit" class="button payment-primary">Simular pago aprobado</button></form><form method="post">{% csrf_token %}<input type="hidden" name="resultado" value="REJECTED"><button type="submit" class="button payment-secondary">Simular pago rechazado</button></form></div>
 {% endif %}
-</section></div>
+</div></section></div>
 <script>
 (function(){const contador=document.getElementById("contador");if(!contador)return;let restantes=Number.parseInt(contador.dataset.segundos,10)||0;const boton=document.getElementById("boton-wompi");let intervalo;function actualizar(){if(restantes<=0){contador.textContent="Tiempo expirado";if(boton){boton.disabled=true;boton.textContent="Tiempo para pagar expirado";}if(intervalo)window.clearInterval(intervalo);window.setTimeout(function(){window.location.reload();},1000);return;}const minutos=Math.floor(restantes/60);const segundos=restantes%60;contador.textContent=minutos+":"+segundos.toString().padStart(2,"0");restantes-=1;}actualizar();intervalo=window.setInterval(actualizar,1000);}());
 </script>

@@ -47,7 +47,12 @@ def classify_expired_reservation(reservation_id):
     if transactions.filter(status="PENDING").exists():
         return "NEEDS_RECONCILIATION"
 
-    if payments.filter(payment_status="PENDING").exists():
+    if (
+        payments.filter(payment_status="PENDING")
+        .exclude(provider_transaction_id__isnull=True)
+        .exclude(provider_transaction_id="")
+        .exists()
+    ):
         return "NEEDS_RECONCILIATION"
 
     return "CAN_EXPIRE"

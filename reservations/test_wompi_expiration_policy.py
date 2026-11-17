@@ -73,7 +73,17 @@ class WompiExpirationPolicyTests(TestCase):
             currency="COP",
         )
 
-    def test_pending_payment_needs_reconciliation(self):
+    def test_unstarted_pending_payment_can_expire(self):
+        result = classify_expired_reservation(
+            self.reservation.pk
+        )
+
+        self.assertEqual(result, "CAN_EXPIRE")
+
+    def test_identified_pending_payment_needs_reconciliation(self):
+        self.payment.provider_transaction_id = "TX-POLICY-IDENTIFIED"
+        self.payment.save(update_fields=["provider_transaction_id"])
+
         result = classify_expired_reservation(
             self.reservation.pk
         )

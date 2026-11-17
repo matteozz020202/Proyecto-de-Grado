@@ -73,8 +73,25 @@ class PaymentExpirationTests(TestCase):
             "EXPIRED",
         )
 
-    def test_pending_wompi_payment_prevents_expiration(self):
+    def test_unstarted_wompi_payment_allows_expiration(self):
         create_wompi_payment_attempt(self.reservation)
+
+        self.expire_hold()
+
+        count = expire_pending_reservations()
+
+        self.reservation.refresh_from_db()
+
+        self.assertEqual(count, 1)
+        self.assertEqual(
+            self.reservation.reservation_status,
+            "EXPIRED",
+        )
+
+    def test_identified_pending_wompi_payment_prevents_expiration(self):
+        payment = create_wompi_payment_attempt(self.reservation)
+        payment.provider_transaction_id = "TX-EXPIRATION-PENDING"
+        payment.save(update_fields=["provider_transaction_id"])
 
         self.expire_hold()
 
