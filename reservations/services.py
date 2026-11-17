@@ -89,18 +89,23 @@ def expire_pending_reservations():
             ):
                 continue
 
-            # Comprobar intentos pendientes mientras
-            # mantenemos bloqueada la reserva.
-            has_pending_wompi_payment = (
+            # Un Payment se crea antes de enviar al usuario a Wompi.
+            # Si nunca recibio un identificador del proveedor, solo es
+            # un checkout preparado y no debe bloquear el horario para
+            # siempre. Los pagos ya identificados si deben conciliarse.
+            has_identified_pending_wompi_payment = (
                 Payment.objects.filter(
                     reservation=reservation,
                     provider="WOMPI",
                     payment_status="PENDING",
-                ).exists()
+                )
+                .exclude(provider_transaction_id__isnull=True)
+                .exclude(provider_transaction_id="")
+                .exists()
             )
 
-            if has_pending_wompi_payment:
-                            continue
+            if has_identified_pending_wompi_payment:
+                continue
 
             # Un Payment puede tener varias transacciones.
             # Aunque el estado general sea DECLINED,
